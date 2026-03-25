@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habitat Spatial Hunt</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold:#f0c040; --amber:#d47800; --parchment:#f5e9c8;
+  --ink:#1e120a; --water:#2a7fb5; --forest:#2e6b30;
+  --sky-col:#5ba8d6; --earth:#8b5e2a;
+  --coral-red:#e05040; --lime:#4dbf7a;
+  --card:#12100a; --border:rgba(240,192,64,0.18);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Nunito',sans-serif;
+  background:#0a0804;min-height:100vh;overflow-x:hidden;
+  cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M10 2 L12 8 L18 8 L13 12 L15 18 L10 14 L5 18 L7 12 L2 8 L8 8 Z' fill='%23f0c040' opacity='0.9'/%3E%3C/svg%3E") 10 10, auto;
+}
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.screen{display:none;position:relative;z-index:1;min-height:100vh;align-items:center;justify-content:center;padding:20px;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ── START ── */
+.start-wrap{max-width:980px;width:100%;animation:riseIn 1s cubic-bezier(.34,1.56,.64,1) both;}
+@keyframes riseIn{from{opacity:0;transform:translateY(60px) scale(.92);}to{opacity:1;transform:none;}}
+.start-hero{position:relative;border-radius:28px;overflow:hidden;border:2px solid rgba(240,192,64,.35);box-shadow:0 0 100px rgba(240,192,64,.12),0 40px 80px rgba(0,0,0,.7);margin-bottom:20px;}
+.hero-scene{width:100%;display:block;height:340px;}
+.start-content{padding:30px 44px 38px;text-align:center;background:linear-gradient(0deg,rgba(10,8,4,.97) 0%,rgba(10,8,4,.65) 100%);position:relative;}
+.start-content::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23f0c040' fill-opacity='0.025'%3E%3Cpath d='M20 0L24 16H40L27 26L31 42L20 32L9 42L13 26L0 16H16Z'/%3E%3C/g%3E%3C/svg%3E");pointer-events:none;}
+.start-badge{display:inline-block;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.3);border-radius:20px;padding:5px 16px;font-size:.68rem;font-weight:900;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;}
+.start-title{font-family:'Cinzel Decorative',cursive;font-size:2.6rem;line-height:1.1;color:var(--gold);text-shadow:0 0 60px rgba(240,192,64,.6);margin-bottom:8px;}
+.start-sub{font-size:.98rem;color:rgba(245,233,200,.68);line-height:1.8;max-width:580px;margin:0 auto 26px;}
+.start-sub strong{color:var(--gold);}
+.skill-pills{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-bottom:28px;}
+.skill-pill{background:rgba(255,255,255,.03);border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:9px 14px;text-align:center;font-size:.72rem;font-weight:900;color:rgba(245,233,200,.55);letter-spacing:1px;text-transform:uppercase;transition:all .3s;}
+.skill-pill:hover{border-color:rgba(240,192,64,.4);color:var(--gold);transform:translateY(-3px);}
+.skill-pill span{display:block;font-size:1.4rem;margin-bottom:4px;}
+.start-btn{font-family:'Cinzel Decorative',cursive;font-size:1.1rem;background:linear-gradient(135deg,#f0c040,#d47800);color:#0a0804;border:none;padding:18px 62px;border-radius:50px;cursor:pointer;box-shadow:0 8px 40px rgba(240,192,64,.5);transition:all .25s;position:relative;overflow:hidden;}
+.start-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);transform:translateX(-100%);transition:transform .7s;}
+.start-btn:hover{transform:translateY(-4px) scale(1.04);box-shadow:0 16px 50px rgba(240,192,64,.6);}
+.start-btn:hover::after{transform:translateX(100%);}
+
+/* ── HUD ── */
+.q-outer{max-width:900px;width:100%;animation:slideUp .5s cubic-bezier(.34,1.56,.64,1) both;}
+@keyframes slideUp{from{opacity:0;transform:translateY(36px);}to{opacity:1;transform:none;}}
+.hud{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:0 4px;}
+.hud-left{display:flex;align-items:center;gap:10px;}
+.hud-badge{font-family:'Cinzel Decorative',cursive;background:rgba(240,192,64,.1);border:1.5px solid rgba(240,192,64,.3);border-radius:20px;padding:5px 14px;font-size:.75rem;color:var(--gold);}
+.skill-tag{background:rgba(91,168,214,.1);border:1px solid rgba(91,168,214,.25);border-radius:20px;padding:4px 12px;font-size:.65rem;font-weight:900;color:var(--sky-col);letter-spacing:1.5px;text-transform:uppercase;}
+.hud-score{font-family:'Cinzel Decorative',cursive;color:var(--lime);font-size:.9rem;display:flex;align-items:center;gap:6px;}
+
+/* ── MAP ── */
+.map-container{background:rgba(245,233,200,.04);border:1.5px solid var(--border);border-radius:18px;padding:12px 18px;margin-bottom:16px;position:relative;overflow:hidden;}
+.map-container::before{content:'';position:absolute;inset:0;opacity:.03;background:repeating-linear-gradient(0deg,transparent,transparent 18px,rgba(240,192,64,.5) 18px,rgba(240,192,64,.5) 19px),repeating-linear-gradient(90deg,transparent,transparent 18px,rgba(240,192,64,.5) 18px,rgba(240,192,64,.5) 19px);}
+.map-label{font-size:.58rem;font-weight:900;color:rgba(240,192,64,.4);letter-spacing:3px;text-transform:uppercase;text-align:center;margin-bottom:10px;}
+.map-track{display:flex;align-items:center;justify-content:space-between;position:relative;padding:0 8px;}
+.map-path-bg{position:absolute;top:50%;left:24px;right:24px;height:2px;background:repeating-linear-gradient(90deg,rgba(240,192,64,.2) 0,rgba(240,192,64,.2) 8px,transparent 8px,transparent 16px);transform:translateY(-50%);}
+.map-path-done{position:absolute;top:50%;left:24px;height:2px;background:linear-gradient(90deg,var(--gold),var(--lime));transform:translateY(-50%);transition:width .8s ease;box-shadow:0 0 8px rgba(240,192,64,.5);z-index:1;}
+.map-node{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.map-pin{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:all .4s;background:rgba(10,8,4,.9);}
+.map-pin.done{border-color:var(--lime);background:rgba(77,191,122,.12);box-shadow:0 0 16px rgba(77,191,122,.35);}
+.map-pin.done::after{content:'✓';position:absolute;top:-5px;right:-5px;width:16px;height:16px;background:var(--lime);border-radius:50%;font-size:.6rem;font-weight:900;display:flex;align-items:center;justify-content:center;color:#0a0804;line-height:16px;text-align:center;}
+.map-pin.active{border-color:var(--gold);background:rgba(240,192,64,.1);box-shadow:0 0 24px rgba(240,192,64,.7);animation:pinPulse 1.6s ease-in-out infinite;transform:scale(1.1);}
+@keyframes pinPulse{0%,100%{box-shadow:0 0 16px rgba(240,192,64,.5);}50%{box-shadow:0 0 36px rgba(240,192,64,.95);}}
+.map-pin-label{font-size:.56rem;font-weight:900;color:rgba(245,233,200,.35);letter-spacing:1px;text-transform:uppercase;transition:color .4s;max-width:52px;text-align:center;}
+.map-node.active .map-pin-label{color:var(--gold);}
+.map-node.done .map-pin-label{color:var(--lime);}
+.map-chest{width:50px;height:50px;border-radius:10px;border:2px solid rgba(240,192,64,.2);background:rgba(10,8,4,.9);display:flex;align-items:center;justify-content:center;font-size:1.8rem;transition:all .4s;position:relative;z-index:2;}
+.map-chest.unlocked{border-color:var(--gold);background:rgba(240,192,64,.12);box-shadow:0 0 30px rgba(240,192,64,.7);animation:chestGlow 1s ease-in-out infinite;}
+@keyframes chestGlow{0%,100%{box-shadow:0 0 20px rgba(240,192,64,.5);}50%{box-shadow:0 0 50px rgba(240,192,64,1);}}
+
+/* ── QUESTION CARD ── */
+.q-main{background:rgba(245,233,200,.03);border:1.5px solid var(--border);border-radius:26px;overflow:hidden;backdrop-filter:blur(12px);box-shadow:0 24px 64px rgba(0,0,0,.5);margin-bottom:16px;}
+
+/* The spatial diagram IS the banner */
+.q-diagram-wrap{width:100%;position:relative;overflow:hidden;background:#080604;}
+.q-diagram-wrap svg{width:100%;display:block;}
+.zone-ribbon{position:absolute;top:12px;left:16px;background:rgba(0,0,0,.65);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:5px 13px;font-size:.7rem;font-weight:900;color:white;letter-spacing:2px;text-transform:uppercase;display:flex;align-items:center;gap:6px;}
+.skill-ribbon{position:absolute;top:12px;right:16px;background:rgba(91,168,214,.15);backdrop-filter:blur(10px);border:1px solid rgba(91,168,214,.3);border-radius:20px;padding:5px 13px;font-size:.65rem;font-weight:900;color:var(--sky-col);letter-spacing:2px;text-transform:uppercase;}
+
+.q-body{padding:26px 28px 20px;}
+.q-zone-pill{display:inline-flex;align-items:center;gap:7px;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.22);border-radius:20px;padding:4px 13px;font-size:.68rem;font-weight:900;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}
+.q-text{font-family:'Cinzel Decorative',cursive;font-size:1rem;color:var(--parchment);line-height:1.65;margin-bottom:6px;}
+.q-instruction{font-size:.78rem;color:rgba(245,233,200,.38);font-style:italic;margin-bottom:16px;}
+.hint-box{background:rgba(91,168,214,.05);border:1px solid rgba(91,168,214,.18);border-radius:12px;padding:10px 14px;display:flex;align-items:flex-start;gap:9px;cursor:pointer;transition:all .3s;user-select:none;margin-bottom:12px;}
+.hint-box:hover{background:rgba(91,168,214,.1);}
+.hint-label{font-size:.68rem;font-weight:900;color:var(--sky-col);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.hint-text{font-size:.84rem;color:rgba(245,233,200,.7);line-height:1.55;display:none;}
+.hint-text.vis{display:block;}
+.hint-toggle{font-size:.68rem;color:var(--sky-col);font-weight:700;}
+.funfact-box{background:rgba(77,191,122,.07);border:1px solid rgba(77,191,122,.22);border-radius:12px;padding:11px 15px;display:none;animation:fadeSlide .5s ease both;}
+.funfact-box.vis{display:flex;gap:9px;align-items:flex-start;}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.ff-label{font-size:.66rem;font-weight:900;color:var(--lime);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px;}
+.ff-text{font-size:.83rem;color:rgba(245,233,200,.76);line-height:1.55;}
+
+/* ── OPTIONS — spatial diagram cards ── */
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.opt-btn{background:rgba(245,233,200,.03);border:2px solid rgba(255,255,255,.08);border-radius:18px;padding:0;cursor:pointer;transition:all .25s;text-align:left;overflow:hidden;}
+.opt-btn:hover{border-color:rgba(240,192,64,.4);background:rgba(240,192,64,.05);transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.35);}
+.opt-img-strip{width:100%;height:100px;overflow:hidden;position:relative;}
+.opt-img-strip svg{width:100%;height:100%;display:block;}
+.opt-letter-badge{position:absolute;top:7px;left:8px;width:26px;height:26px;border-radius:7px;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);border:1.5px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-family:'Cinzel Decorative',cursive;font-size:.7rem;color:var(--gold);}
+.opt-content{padding:10px 12px 12px;}
+.opt-title{font-weight:900;font-size:.86rem;color:var(--parchment);margin-bottom:2px;line-height:1.3;}
+.opt-desc{font-size:.71rem;color:rgba(245,233,200,.4);line-height:1.4;}
+.opt-btn.correct{border-color:var(--lime)!important;background:rgba(77,191,122,.12)!important;animation:correctPop .5s ease;}
+.opt-btn.wrong{border-color:var(--coral-red)!important;background:rgba(224,80,64,.1)!important;animation:shake .4s ease;}
+@keyframes correctPop{0%{transform:scale(1);}40%{transform:scale(1.06);}100%{transform:scale(1.02);}}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-8px);}75%{transform:translateX(8px);}}
+
+/* ── TOAST ── */
+.toast{position:fixed;top:22px;left:50%;transform:translateX(-50%) translateY(-90px);background:#0a0804;border-radius:50px;padding:12px 24px;display:flex;align-items:center;gap:8px;font-weight:900;font-size:.92rem;z-index:200;transition:transform .45s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;box-shadow:0 8px 40px rgba(0,0,0,.6);}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{border:2px solid var(--lime);color:var(--lime);}
+.toast.error{border:2px solid var(--coral-red);color:var(--coral-red);}
+
+/* ── WIN ── */
+.win-wrap{max-width:860px;width:100%;animation:riseIn .8s cubic-bezier(.34,1.56,.64,1) both;}
+.win-card{border-radius:26px;overflow:hidden;border:2px solid rgba(240,192,64,.4);box-shadow:0 0 80px rgba(240,192,64,.18),0 40px 80px rgba(0,0,0,.6);background:linear-gradient(135deg,#0a0702,#120e04);}
+.win-collage{display:grid;grid-template-columns:repeat(4,1fr);height:140px;gap:2px;}
+.win-collage div{display:flex;align-items:center;justify-content:center;font-size:3rem;animation:habitatIn .6s cubic-bezier(.34,1.56,.64,1) both;}
+.win-collage div:nth-child(1){animation-delay:.1s;background:linear-gradient(180deg,#0a3060,#1565c0);}
+.win-collage div:nth-child(2){animation-delay:.2s;background:linear-gradient(180deg,#0a1a0c,#1e5a20);}
+.win-collage div:nth-child(3){animation-delay:.3s;background:linear-gradient(180deg,#1a0e2a,#6b2a78);}
+.win-collage div:nth-child(4){animation-delay:.4s;background:linear-gradient(180deg,#0d0f06,#5a3e10);}
+@keyframes habitatIn{from{opacity:0;transform:scale(.5);}to{opacity:1;transform:scale(1);}}
+.win-body{padding:38px 44px;text-align:center;}
+.win-trophy{font-size:4.5rem;animation:trophyBounce .8s cubic-bezier(.34,1.56,.64,1);filter:drop-shadow(0 0 30px rgba(240,192,64,.7));display:block;margin-bottom:10px;}
+@keyframes trophyBounce{from{transform:rotate(-20deg) scale(0);}to{transform:rotate(0) scale(1);}}
+.win-title{font-family:'Cinzel Decorative',cursive;font-size:2rem;color:var(--gold);text-shadow:0 0 40px rgba(240,192,64,.4);margin-bottom:6px;}
+.win-sub{font-size:.92rem;color:rgba(245,233,200,.62);line-height:1.8;margin-bottom:24px;}
+.score-ring{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:110px;height:110px;border-radius:50%;border:3px solid rgba(240,192,64,.3);box-shadow:0 0 40px rgba(240,192,64,.2);margin-bottom:22px;position:relative;background:conic-gradient(var(--gold) 0deg,rgba(240,192,64,.08) 0deg);}
+.score-ring::before{content:'';position:absolute;inset:6px;border-radius:50%;background:#0a0804;}
+.score-ring-inner{position:relative;z-index:1;text-align:center;}
+.score-num{font-family:'Cinzel Decorative',cursive;font-size:1.8rem;color:var(--gold);display:block;line-height:1;}
+.score-lbl{font-size:.58rem;font-weight:900;color:rgba(245,233,200,.3);letter-spacing:2px;text-transform:uppercase;}
+.badges{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-bottom:28px;}
+.badge{background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 14px;font-size:.76rem;font-weight:700;color:rgba(245,233,200,.65);display:flex;align-items:center;gap:6px;animation:badgeIn .5s cubic-bezier(.34,1.56,.64,1) both;}
+@keyframes badgeIn{from{opacity:0;transform:scale(.4) rotate(-10deg);}to{opacity:1;transform:scale(1) rotate(0);}}
+.replay-btn{font-family:'Cinzel Decorative',cursive;font-size:1rem;background:linear-gradient(135deg,var(--gold),var(--amber));color:#0a0804;border:none;padding:14px 48px;border-radius:50px;cursor:pointer;box-shadow:0 8px 36px rgba(240,192,64,.4);transition:all .2s;}
+.replay-btn:hover{transform:translateY(-3px);box-shadow:0 14px 44px rgba(240,192,64,.5);}
+.cf{position:fixed;border-radius:2px;animation:cfFall linear forwards;z-index:99;pointer-events:none;}
+@keyframes cfFall{0%{transform:translateY(-30px) rotate(0deg);opacity:1;}100%{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+
+@media(max-width:580px){
+  .options-grid{grid-template-columns:1fr;}
+  .start-title{font-size:1.8rem;}
+  .q-text{font-size:.88rem;}
+  .win-body{padding:22px 16px;}
+  .start-content{padding:20px 16px 28px;}
+  .q-body{padding:22px 16px 16px;}
+  .map-pin{width:38px;height:38px;font-size:1.1rem;}
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="toast" id="toast"><span id="t-icon">✅</span><span id="t-msg">Correct!</span></div>
+
+<!-- ══════════════════ START ══════════════════ -->
+<div class="screen active" id="s-start">
+  <div class="start-wrap">
+    <div class="start-hero">
+      <svg class="hero-scene" viewBox="0 0 980 340" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="h-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#04070f"/><stop offset="100%" stop-color="#0a1220"/></linearGradient>
+        </defs>
+        <!-- Full cross-section panorama of all 4 habitats stacked as one world -->
+        <rect width="980" height="340" fill="#04070f"/>
+        <!-- Stars -->
+        <circle cx="50" cy="20" r="1.2" fill="white" opacity=".7"/><circle cx="130" cy="12" r="1" fill="white" opacity=".6"/><circle cx="240" cy="28" r="1.5" fill="white" opacity=".8"/><circle cx="380" cy="10" r="1" fill="white" opacity=".7"/><circle cx="490" cy="22" r="1.2" fill="white" opacity=".8"/><circle cx="620" cy="8" r="1" fill="white" opacity=".6"/><circle cx="750" cy="18" r="1.5" fill="white" opacity=".9"/><circle cx="870" cy="14" r="1" fill="white" opacity=".7"/><circle cx="940" cy="30" r="1.2" fill="white" opacity=".5"/>
+        <!-- Moon -->
+        <circle cx="900" cy="50" r="30" fill="#fffbe6" opacity=".8"/><circle cx="914" cy="40" r="20" fill="#04070f" opacity=".35"/>
+        <!-- Sky band -->
+        <rect y="0" width="980" height="120" fill="#06100a" opacity=".4"/>
+        <!-- Mountains silhouette -->
+        <polygon points="0,180 80,60 160,180" fill="#0e1a0e" opacity=".9"/>
+        <polygon points="100,180 200,40 300,180" fill="#0a1408" opacity=".9"/>
+        <polygon points="250,180 370,50 490,180" fill="#0e1a0e" opacity=".8"/>
+        <polygon points="420,180 530,70 640,180" fill="#0a1408" opacity=".9"/>
+        <polygon points="600,180 710,45 820,180" fill="#0e1a0e" opacity=".8"/>
+        <polygon points="750,180 860,65 980,180" fill="#0a1408" opacity=".9"/>
+        <!-- Snow -->
+        <polygon points="200,40 190,75 210,75" fill="white" opacity=".7"/><polygon points="370,50 358,88 382,88" fill="white" opacity=".7"/><polygon points="530,70 518,105 542,105" fill="white" opacity=".65"/><polygon points="710,45 698,82 722,82" fill="white" opacity=".7"/>
+        <!-- Ground layers cross-section -->
+        <!-- Surface -->
+        <rect y="180" width="980" height="30" fill="#3a4a18"/>
+        <!-- Soil layer 1 -->
+        <rect y="210" width="980" height="35" fill="#5a3e10"/>
+        <!-- Soil layer 2 -->
+        <rect y="245" width="980" height="30" fill="#4a2e08"/>
+        <!-- Underground / rock -->
+        <rect y="275" width="980" height="65" fill="#2a1e08"/>
+        <!-- Water table line -->
+        <line x1="0" y1="275" x2="980" y2="275" stroke="rgba(42,127,181,.5)" stroke-width="2" stroke-dasharray="12,6"/>
+        <!-- Underground water pools -->
+        <ellipse cx="180" cy="295" rx="70" ry="14" fill="#0a3060" opacity=".6"/>
+        <ellipse cx="480" cy="300" rx="90" ry="16" fill="#0a3060" opacity=".5"/>
+        <ellipse cx="780" cy="295" rx="75" ry="14" fill="#0a3060" opacity=".6"/>
+        <!-- Tree roots -->
+        <line x1="200" y1="210" x2="190" y2="260" stroke="#3a2a1a" stroke-width="3" opacity=".6"/>
+        <line x1="200" y1="210" x2="214" y2="265" stroke="#3a2a1a" stroke-width="2" opacity=".6"/>
+        <line x1="460" y1="210" x2="448" y2="262" stroke="#3a2a1a" stroke-width="3" opacity=".6"/>
+        <line x1="460" y1="210" x2="474" y2="258" stroke="#3a2a1a" stroke-width="2" opacity=".6"/>
+        <line x1="740" y1="210" x2="728" y2="260" stroke="#3a2a1a" stroke-width="3" opacity=".6"/>
+        <line x1="740" y1="210" x2="754" y2="256" stroke="#3a2a1a" stroke-width="2" opacity=".6"/>
+        <!-- Burrowing animals underground -->
+        <text x="240" y="238" font-size="18">🐛</text><text x="350" y="255" font-size="16">🦎</text><text x="550" y="242" font-size="18">🐭</text><text x="640" y="258" font-size="16">🐜</text><text x="840" y="240" font-size="18">🦔</text>
+        <!-- Surface animals -->
+        <text x="20" y="210" font-size="26">🦁</text><text x="110" y="205" font-size="22">🦒</text><text x="310" y="208" font-size="24">🦓</text><text x="560" y="206" font-size="22">🐘</text><text x="700" y="210" font-size="20">🦏</text><text x="900" y="208" font-size="24">🦬</text>
+        <!-- Trees on surface -->
+        <rect x="192" y="140" width="8" height="44" rx="3" fill="#5c3a1a"/>
+        <ellipse cx="196" cy="132" rx="32" ry="16" fill="#2a6a0a" opacity=".9"/>
+        <rect x="452" y="135" width="8" height="50" rx="3" fill="#5c3a1a"/>
+        <ellipse cx="456" cy="126" rx="36" ry="17" fill="#2a6a0a" opacity=".9"/>
+        <rect x="732" y="138" width="8" height="46" rx="3" fill="#5c3a1a"/>
+        <ellipse cx="736" cy="130" rx="34" ry="16" fill="#2a6a0a" opacity=".9"/>
+        <!-- Sky creatures -->
+        <text x="80" y="90" font-size="28">🦅</text><text x="280" y="80" font-size="24">🦜</text><text x="430" y="75" font-size="26">🦉</text><text x="640" y="88" font-size="22">🦋</text><text x="820" y="82" font-size="24">🦇</text>
+        <!-- Layer labels -->
+        <text x="8" y="198" font-family="'Cinzel Decorative',cursive" font-size="8" fill="rgba(240,192,64,.5)" letter-spacing="2">SURFACE</text>
+        <text x="8" y="232" font-family="'Cinzel Decorative',cursive" font-size="8" fill="rgba(200,140,40,.4)" letter-spacing="2">TOPSOIL</text>
+        <text x="8" y="262" font-family="'Cinzel Decorative',cursive" font-size="8" fill="rgba(160,100,30,.4)" letter-spacing="2">SUBSOIL</text>
+        <text x="8" y="292" font-family="'Cinzel Decorative',cursive" font-size="8" fill="rgba(42,127,181,.5)" letter-spacing="2">WATER TABLE</text>
+        <text x="8" y="318" font-family="'Cinzel Decorative',cursive" font-size="8" fill="rgba(80,60,20,.5)" letter-spacing="2">BEDROCK</text>
+        <!-- Title -->
+        <text x="490" y="168" font-family="'Cinzel Decorative',cursive" font-size="46" fill="#f0c040" text-anchor="middle" opacity=".08" letter-spacing="2">SPATIAL HUNT</text>
+      </svg>
+      <div class="start-content">
+        <div class="start-badge">🧠 Spatial Intelligence · Class 6</div>
+        <div class="start-title">Habitat Spatial Hunt 🗺️</div>
+        <p class="start-sub">This isn't a picture quiz — it's a <strong>thinking challenge</strong>.<br>Read cross-sections, depth maps, food webs and aerial views to find where every creature truly belongs.</p>
+        <div class="skill-pills">
+          <div class="skill-pill"><span>📐</span>Cross-Sections</div>
+          <div class="skill-pill"><span>🌊</span>Depth Layers</div>
+          <div class="skill-pill"><span>🗺️</span>Aerial Maps</div>
+          <div class="skill-pill"><span>🕸️</span>Food Webs</div>
+        </div>
+        <button class="start-btn" onclick="startGame()">⚡ Begin the Hunt!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ QUESTION ══════════════════ -->
+<div class="screen" id="s-question">
+  <div class="q-outer">
+    <div class="hud">
+      <div class="hud-left">
+        <div class="hud-badge" id="hud-zone">Zone 1</div>
+        <div class="skill-tag" id="hud-skill">DEPTH</div>
+      </div>
+      <div class="hud-score">⭐ <span id="hud-pts">0</span> pts</div>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-container">
+      <div class="map-label">🗺️ &nbsp;Treasure Map &nbsp;🗺️</div>
+      <div class="map-track">
+        <div class="map-path-bg"></div>
+        <div class="map-path-done" id="map-path-done" style="width:0%"></div>
+        <div class="map-node" id="mn-0"><div class="map-pin" id="mp-0">🐠</div><div class="map-pin-label">Aquatic 1</div></div>
+        <div class="map-node" id="mn-1"><div class="map-pin" id="mp-1">🌊</div><div class="map-pin-label">Aquatic 2</div></div>
+        <div class="map-node" id="mn-2"><div class="map-pin" id="mp-2">🐸</div><div class="map-pin-label">Amph. 1</div></div>
+        <div class="map-node" id="mn-3"><div class="map-pin" id="mp-3">🌿</div><div class="map-pin-label">Amph. 2</div></div>
+        <div class="map-node" id="mn-4"><div class="map-pin" id="mp-4">🦅</div><div class="map-pin-label">Aerial 1</div></div>
+        <div class="map-node" id="mn-5"><div class="map-pin" id="mp-5">☁️</div><div class="map-pin-label">Aerial 2</div></div>
+        <div class="map-node" id="mn-6"><div class="map-pin" id="mp-6">🦁</div><div class="map-pin-label">Terr. 1</div></div>
+        <div class="map-node" id="mn-7"><div class="map-pin" id="mp-7">🌾</div><div class="map-pin-label">Terr. 2</div></div>
+        <div class="map-chest" id="map-chest">🗝️</div>
+      </div>
+    </div>
+
+    <div class="q-main">
+      <div class="q-diagram-wrap" id="q-banner">
+        <div class="zone-ribbon" id="zone-ribbon">🌊 Aquatic</div>
+        <div class="skill-ribbon" id="skill-ribbon">DEPTH LAYERS</div>
+      </div>
+      <div class="q-body">
+        <div class="q-zone-pill" id="q-pill">🌊 Aquatic Zone</div>
+        <div class="q-text" id="q-text">Question</div>
+        <div class="q-instruction">📐 Study the diagram carefully — use spatial reasoning to find the answer.</div>
+        <div class="hint-box" onclick="toggleHint()">
+          <span style="font-size:1.1rem">💡</span>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="hint-label">Spatial Hint</div>
+              <div class="hint-toggle" id="hint-tog">▼ tap to reveal</div>
+            </div>
+            <div class="hint-text" id="hint-txt"></div>
+          </div>
+        </div>
+        <div class="funfact-box" id="funfact">
+          <span style="font-size:1.3rem">🔬</span>
+          <div><div class="ff-label">Spatial Insight!</div><div class="ff-text" id="ff-text"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="options-grid" id="opts"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ WIN ══════════════════ -->
+<div class="screen" id="s-win">
+  <div class="win-wrap">
+    <div class="win-card">
+      <div class="win-collage"><div>🐠</div><div>🐸</div><div>🦅</div><div>🦁</div></div>
+      <div class="win-body">
+        <span class="win-trophy">🏆</span>
+        <div class="win-title">Treasure Found!</div>
+        <p class="win-sub">You've read cross-sections, depth maps, food webs and aerial diagrams across all four habitats.<br>You are a true <strong style="color:var(--gold)">Spatial Explorer!</strong></p>
+        <div class="score-ring"><div class="score-ring-inner"><span class="score-num" id="final-pts">0</span><span class="score-lbl">points</span></div></div>
+        <div class="badges" id="badges"></div>
+        <button class="replay-btn" onclick="resetGame()">🔄 Hunt Again!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   QUESTIONS — each has a spatial SVG diagram as the main visual
+   Skills: depth-layers, cross-section, aerial-map, food-web
+═══════════════════════════════════════════════════════ */
+const questions = [
+
+/* ══════════════ AQUATIC Q1 — DEPTH LAYERS ══════════════ */
+{
+  zone:"🌊 Aquatic", zoneName:"Q1 · Aquatic Zone", skillTag:"DEPTH LAYERS",
+  skillRibbon:"DEPTH LAYERS", zoneRibbon:"🌊 Aquatic",
+  animal:"🐠",
+  /* Ocean depth cross-section with 4 labelled zones */
+  diagramSVG:`
+    <svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="oc1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0b4a8a"/><stop offset="100%" stop-color="#020a14"/>
+        </linearGradient>
+      </defs>
+      <!-- Sky above surface -->
+      <rect width="860" height="60" fill="#0a1828"/>
+      <circle cx="810" cy="28" r="22" fill="#fffbe6" opacity=".75"/>
+      <circle cx="822" cy="20" r="14" fill="#0a1828" opacity=".35"/>
+      <circle cx="30" cy="18" r="1.2" fill="white" opacity=".8"/><circle cx="110" cy="28" r="1" fill="white" opacity=".6"/><circle cx="230" cy="10" r="1.5" fill="white" opacity=".9"/><circle cx="420" cy="22" r="1" fill="white" opacity=".7"/><circle cx="580" cy="14" r="1.2" fill="white" opacity=".8"/>
+      <!-- Surface water line -->
+      <path d="M0 62 Q50 55 100 62 Q150 69 200 62 Q250 55 300 62 Q350 69 400 62 Q450 55 500 62 Q550 69 600 62 Q650 55 700 62 Q750 69 800 62 Q830 58 860 62 L860 68 L0 68Z" fill="#1a6aaa" opacity=".9"/>
+      <!-- Ocean body -->
+      <rect x="0" y="62" width="860" height="218" fill="url(#oc1)"/>
+      <!-- Zone bands -->
+      <rect x="0" y="62" width="860" height="52" fill="#0b4a8a" opacity=".5"/>
+      <rect x="0" y="114" width="860" height="50" fill="#083a70" opacity=".5"/>
+      <rect x="0" y="164" width="860" height="50" fill="#052a52" opacity=".5"/>
+      <rect x="0" y="214" width="860" height="66" fill="#020e20" opacity=".6"/>
+      <!-- Zone divider lines -->
+      <line x1="0" y1="114" x2="860" y2="114" stroke="rgba(72,180,224,.25)" stroke-width="1" stroke-dasharray="8,5"/>
+      <line x1="0" y1="164" x2="860" y2="164" stroke="rgba(72,180,224,.18)" stroke-width="1" stroke-dasharray="8,5"/>
+      <line x1="0" y1="214" x2="860" y2="214" stroke="rgba(72,180,224,.12)" stroke-width="1" stroke-dasharray="8,5"/>
+      <!-- Sunlight rays -->
+      <polygon points="200,62 185,130 215,130" fill="rgba(72,180,224,.06)"/>
+      <polygon points="400,62 382,130 418,130" fill="rgba(72,180,224,.05)"/>
+      <polygon points="620,62 604,130 636,130" fill="rgba(72,180,224,.06)"/>
+      <!-- Zone labels LEFT -->
+      <rect x="0" y="64" width="148" height="48" fill="rgba(0,0,0,.4)" rx="0"/>
+      <text x="8" y="82" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#48b4e0" letter-spacing="1">SUNLIGHT ZONE</text>
+      <text x="8" y="96" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.5)">0 – 200 m depth</text>
+      <text x="8" y="108" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Light reaches here</text>
+
+      <rect x="0" y="115" width="148" height="47" fill="rgba(0,0,0,.4)" rx="0"/>
+      <text x="8" y="132" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#3a90cc" letter-spacing="1">TWILIGHT ZONE</text>
+      <text x="8" y="146" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.5)">200 – 1000 m depth</text>
+      <text x="8" y="158" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Dim, cold, dim light</text>
+
+      <rect x="0" y="165" width="148" height="47" fill="rgba(0,0,0,.4)" rx="0"/>
+      <text x="8" y="182" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#2070a8" letter-spacing="1">MIDNIGHT ZONE</text>
+      <text x="8" y="196" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.5)">1000 – 4000 m depth</text>
+      <text x="8" y="208" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">No light, very cold</text>
+
+      <rect x="0" y="215" width="148" height="65" fill="rgba(0,0,0,.4)" rx="0"/>
+      <text x="8" y="232" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#104870" letter-spacing="1">ABYSSAL ZONE</text>
+      <text x="8" y="246" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.5)">4000+ m depth</text>
+      <text x="8" y="258" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Near freezing, crushing</text>
+
+      <!-- Arrow showing depth direction -->
+      <line x1="840" y1="70" x2="840" y2="272" stroke="rgba(240,192,64,.4)" stroke-width="2"/>
+      <polygon points="836,268 840,280 844,268" fill="rgba(240,192,64,.4)"/>
+      <text x="832" y="66" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(240,192,64,.5)" text-anchor="middle">↑</text>
+      <text x="845" y="180" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(240,192,64,.45)" transform="rotate(90,845,180)">DEPTH INCREASES</text>
+
+      <!-- Creatures in correct zones -->
+      <text x="200" y="104" font-size="28">🐠</text>
+      <text x="340" y="98" font-size="24">🦈</text>
+      <text x="500" y="105" font-size="26">🐬</text>
+      <text x="680" y="100" font-size="22">🐡</text>
+      <text x="280" y="150" font-size="22">🐙</text>
+      <text x="580" y="147" font-size="20">🦑</text>
+      <text x="400" y="200" font-size="18">🐟</text>
+      <text x="650" y="195" font-size="16" opacity=".7">🦐</text>
+      <text x="300" y="255" font-size="20" opacity=".7">🦑</text>
+      <text x="550" y="260" font-size="18" opacity=".6">🦀</text>
+      <!-- Coral at bottom of sunlight zone -->
+      <ellipse cx="750" cy="112" rx="28" ry="10" fill="#8b1a1a" opacity=".8"/>
+      <line x1="750" y1="102" x2="742" y2="84" stroke="#ff4422" stroke-width="3" opacity=".7"/>
+      <line x1="750" y1="102" x2="762" y2="82" stroke="#ff6644" stroke-width="3" opacity=".7"/>
+    </svg>`,
+  text:"Study the ocean depth cross-section above. A clownfish hides among coral and can only survive where sunlight reaches and the water is warm. In which depth zone does a clownfish live?",
+  hint:"Clownfish need sunlight to see and warm shallow water to survive. Look at the depth labels — which zone is closest to the surface where sunlight fully reaches?",
+  funfact:"The Sunlight Zone (0-200m) holds 90% of all ocean life! Below 200m the light fades completely. Clownfish live only in the top 15m — near the surface where coral reefs grow.",
+  options:[
+    {letter:"A", img:`<rect width="200" height="100" fill="#020e20"/><text x="70" y="65" font-size="32">🦑</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#104870" font-weight="900">ABYSSAL ZONE</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">4000+ m · No light</text>`, title:"Abyssal Zone — 4000m+ deep", desc:"Near freezing, crushing pressure, pitch dark", correct:false},
+    {letter:"B", img:`<rect width="200" height="100" fill="#052a52"/><text x="70" y="65" font-size="32">🦑</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#2070a8" font-weight="900">MIDNIGHT ZONE</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">1000-4000m · No light</text>`, title:"Midnight Zone — 1000–4000m", desc:"Total darkness, extreme cold, no plants", correct:false},
+    {letter:"C", img:`<rect width="200" height="100" fill="#0b4a8a"/><text x="55" y="65" font-size="32">🐠</text><text x="120" y="62" font-size="24">🪸</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#48b4e0" font-weight="900">SUNLIGHT ZONE</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.5)">0-200m · Warm, bright</text>`, title:"Sunlight Zone — 0–200m depth", desc:"Warm, bright, sunlight reaches, coral grows", correct:true},
+    {letter:"D", img:`<rect width="200" height="100" fill="#083a70"/><text x="70" y="65" font-size="28">🐙</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#3a90cc" font-weight="900">TWILIGHT ZONE</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">200-1000m · Dim light</text>`, title:"Twilight Zone — 200–1000m", desc:"Dim and cold, some bioluminescence", correct:false},
+  ]
+},
+
+/* ══════════════ AQUATIC Q2 — AERIAL MAP ══════════════ */
+{
+  zone:"🌊 Aquatic", zoneName:"Q2 · Aquatic Zone", skillTag:"AERIAL MAP",
+  skillRibbon:"AERIAL MAP", zoneRibbon:"🌊 Aquatic",
+  animal:"🐢",
+  /* Top-down ocean floor map */
+  diagramSVG:`
+    <svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="trench-g" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#010508"/><stop offset="100%" stop-color="#041830"/></radialGradient>
+        <radialGradient id="reef-g" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#0b6a40"/><stop offset="100%" stop-color="#083a60"/></radialGradient>
+        <radialGradient id="shelf-g" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1060a0"/><stop offset="100%" stop-color="#041830"/></radialGradient>
+      </defs>
+      <!-- This is a TOP-DOWN aerial view of ocean floor -->
+      <!-- Deep ocean floor base -->
+      <rect width="860" height="280" fill="#041830"/>
+      <!-- Label: this is TOP-DOWN VIEW -->
+      <rect x="0" y="0" width="860" height="22" fill="rgba(0,0,0,.6)"/>
+      <text x="430" y="15" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(240,192,64,.7)" text-anchor="middle" letter-spacing="3">TOP-DOWN VIEW — OCEAN FLOOR MAP</text>
+      <!-- North arrow -->
+      <text x="820" y="48" font-family="'Nunito',sans-serif" font-size="10" fill="rgba(240,192,64,.6)" text-anchor="middle">N</text>
+      <line x1="820" y1="52" x2="820" y2="70" stroke="rgba(240,192,64,.5)" stroke-width="2"/>
+      <polygon points="816,52 820,40 824,52" fill="rgba(240,192,64,.5)"/>
+      <!-- REGION A — Coral Reef (shallow, near coast, top left) -->
+      <ellipse cx="160" cy="120" rx="110" ry="70" fill="url(#reef-g)" opacity=".9"/>
+      <ellipse cx="160" cy="120" rx="80" ry="50" fill="#0d7a48" opacity=".6"/>
+      <!-- Coral texture dots -->
+      <circle cx="120" cy="110" r="8" fill="#cc3300" opacity=".7"/><circle cx="155" cy="95" r="6" fill="#ff6644" opacity=".7"/><circle cx="185" cy="115" r="9" fill="#993300" opacity=".7"/><circle cx="140" cy="135" r="7" fill="#cc3300" opacity=".6"/><circle cx="175" cy="140" r="8" fill="#ff4422" opacity=".6"/><circle cx="210" cy="120" r="6" fill="#cc3300" opacity=".6"/>
+      <text x="160" y="125" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(245,233,200,.9)" text-anchor="middle" letter-spacing="1">CORAL REEF</text>
+      <text x="160" y="140" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.55)" text-anchor="middle">Shallow · 0–30m</text>
+      <!-- REGION B — Open Deep Ocean (centre) -->
+      <ellipse cx="430" cy="150" rx="130" ry="85" fill="#020c1e" opacity=".95"/>
+      <ellipse cx="430" cy="150" rx="100" ry="65" fill="#010508" opacity=".8"/>
+      <text x="430" y="148" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(245,233,200,.7)" text-anchor="middle" letter-spacing="1">OPEN DEEP OCEAN</text>
+      <text x="430" y="163" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)" text-anchor="middle">2000–4000m below</text>
+      <!-- REGION C — Ocean Trench (bottom right) -->
+      <ellipse cx="680" cy="210" rx="100" ry="50" fill="url(#trench-g)" opacity=".95"/>
+      <ellipse cx="680" cy="210" rx="72" ry="36" fill="#000206" opacity=".9"/>
+      <!-- Trench depth lines (contour) -->
+      <ellipse cx="680" cy="210" rx="60" ry="28" fill="none" stroke="rgba(42,127,181,.2)" stroke-width="1"/>
+      <ellipse cx="680" cy="210" rx="45" ry="20" fill="none" stroke="rgba(42,127,181,.2)" stroke-width="1"/>
+      <ellipse cx="680" cy="210" rx="30" ry="12" fill="none" stroke="rgba(42,127,181,.2)" stroke-width="1"/>
+      <text x="680" y="208" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(245,233,200,.65)" text-anchor="middle" letter-spacing="1">OCEAN TRENCH</text>
+      <text x="680" y="222" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)" text-anchor="middle">10,000m+ deep</text>
+      <!-- REGION D — Seagrass Meadow (top right) -->
+      <ellipse cx="700" cy="90" rx="100" ry="55" fill="#0a3020" opacity=".9"/>
+      <ellipse cx="700" cy="90" rx="75" ry="40" fill="#0d4028" opacity=".7"/>
+      <!-- Seagrass blades -->
+      <line x1="660" y1="105" x2="655" y2="80" stroke="#1e7030" stroke-width="3"/><line x1="668" y1="105" x2="672" y2="78" stroke="#256035" stroke-width="2"/>
+      <line x1="690" y1="100" x2="685" y2="75" stroke="#1e7030" stroke-width="3"/><line x1="698" y1="100" x2="702" y2="73" stroke="#256035" stroke-width="2"/>
+      <line x1="720" y1="105" x2="715" y2="80" stroke="#1e7030" stroke-width="3"/><line x1="728" y1="105" x2="732" y2="78" stroke="#256035" stroke-width="2"/>
+      <line x1="745" y1="100" x2="740" y2="76" stroke="#1e7030" stroke-width="2"/>
+      <text x="700" y="90" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(245,233,200,.85)" text-anchor="middle" letter-spacing="1">SEAGRASS MEADOW</text>
+      <text x="700" y="105" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.5)" text-anchor="middle">Shallow · Warm</text>
+      <!-- Creatures placed correctly -->
+      <text x="115" y="118" font-size="18">🐠</text><text x="190" y="112" font-size="16">🪸</text><text x="145" y="145" font-size="16">🐡</text>
+      <text x="380" y="155" font-size="18" opacity=".7">🦑</text><text x="450" y="145" font-size="16" opacity=".6">🐟</text>
+      <text x="645" y="215" font-size="16" opacity=".6">🦐</text>
+      <text x="660" y="88" font-size="18">🐢</text><text x="730" y="82" font-size="16">🌿</text>
+      <!-- Scale bar -->
+      <line x1="30" y1="262" x2="130" y2="262" stroke="rgba(240,192,64,.4)" stroke-width="2"/>
+      <line x1="30" y1="258" x2="30" y2="266" stroke="rgba(240,192,64,.4)" stroke-width="2"/>
+      <line x1="130" y1="258" x2="130" y2="266" stroke="rgba(240,192,64,.4)" stroke-width="2"/>
+      <text x="80" y="275" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(240,192,64,.4)" text-anchor="middle">500 km</text>
+    </svg>`,
+  text:"This top-down map shows four regions of the ocean floor. A sea turtle needs to eat seagrass — a plant that only grows in warm, shallow, sunlit water. Which region on the map does the sea turtle feed in?",
+  hint:"Sea turtles are air-breathing reptiles that must return to the surface. They graze like cows — but underwater. Which region on this overhead map shows shallow, plant-filled water?",
+  funfact:"Seagrass meadows cover shallow coastal areas and are like 'the grasslands of the sea'. They can only grow where sunlight reaches the bottom — which means water less than 90m deep. Sea turtles can hold their breath for 7 hours while resting!",
+  options:[
+    {letter:"A", img:`<rect width="200" height="100" fill="#0a3020"/><line x1="50" y1="90" x2="45" y2="65" stroke="#1e7030" stroke-width="4"/><line x1="60" y1="90" x2="64" y2="62" stroke="#256035" stroke-width="3"/><line x1="90" y1="90" x2="85" y2="64" stroke="#1e7030" stroke-width="4"/><line x1="100" y1="90" x2="104" y2="62" stroke="#256035" stroke-width="3"/><line x1="130" y1="90" x2="125" y2="65" stroke="#1e7030" stroke-width="4"/><text x="65" y="58" font-size="26">🐢</text><text x="8" y="14" font-family="sans-serif" font-size="10" fill="rgba(245,233,200,.85)" font-weight="900">SEAGRASS MEADOW</text><text x="8" y="26" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.5)">Shallow, warm, plants</text>`, title:"Seagrass Meadow — warm shallow zone", desc:"Sunlit floor, seagrass plants, ideal for grazers", correct:true},
+    {letter:"B", img:`<rect width="200" height="100" fill="#020c1e"/><text x="70" y="62" font-size="28" opacity=".6">🦑</text><text x="8" y="14" font-family="sans-serif" font-size="10" fill="rgba(245,233,200,.7)" font-weight="900">OPEN DEEP OCEAN</text><text x="8" y="26" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">2000-4000m, no floor plants</text>`, title:"Open Deep Ocean — mid-map region", desc:"Featureless deep water, no seagrass possible", correct:false},
+    {letter:"C", img:`<rect width="200" height="100" fill="#0b6a40"/><circle cx="60" cy="60" r="10" fill="#cc3300" opacity=".7"/><circle cx="100" cy="52" r="8" fill="#ff6644" opacity=".7"/><circle cx="140" cy="62" r="10" fill="#993300" opacity=".7"/><text x="8" y="14" font-family="sans-serif" font-size="10" fill="rgba(245,233,200,.85)" font-weight="900">CORAL REEF</text><text x="8" y="26" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.5)">Shallow, but coral not seagrass</text>`, title:"Coral Reef — northwest region", desc:"Shallow and sunlit, but built by coral not grass", correct:false},
+    {letter:"D", img:`<rect width="200" height="100" fill="#000206"/><ellipse cx="100" cy="60" rx="55" ry="24" fill="none" stroke="rgba(42,127,181,.3)" stroke-width="1"/><ellipse cx="100" cy="60" rx="38" ry="16" fill="none" stroke="rgba(42,127,181,.25)" stroke-width="1"/><text x="8" y="14" font-family="sans-serif" font-size="10" fill="rgba(245,233,200,.65)" font-weight="900">OCEAN TRENCH</text><text x="8" y="26" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.35)">10,000m deep, no light, no plants</text>`, title:"Ocean Trench — deepest point", desc:"Extreme depth, no sunlight, no plant life", correct:false},
+  ]
+},
+
+/* ══════════════ AMPHIBIAN Q1 — CROSS-SECTION ══════════════ */
+{
+  zone:"🐸 Amphibian", zoneName:"Q3 · Amphibian Zone", skillTag:"CROSS-SECTION",
+  skillRibbon:"CROSS-SECTION", zoneRibbon:"🐸 Amphibian",
+  animal:"🐸",
+  /* Riverbank cross-section showing land-water interface */
+  diagramSVG:`
+    <svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="water-cs" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a7aaa"/><stop offset="100%" stop-color="#0a3a60"/></linearGradient>
+        <linearGradient id="sky-cs" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0a1e30"/><stop offset="100%" stop-color="#1a4a60"/></linearGradient>
+      </defs>
+      <!-- View label -->
+      <rect x="0" y="0" width="860" height="20" fill="rgba(0,0,0,.6)"/>
+      <text x="430" y="14" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(240,192,64,.7)" text-anchor="middle" letter-spacing="3">SIDE VIEW CROSS-SECTION — RIVERBANK</text>
+      <!-- Sky -->
+      <rect x="0" y="20" width="860" height="80" fill="url(#sky-cs)"/>
+      <!-- Clouds -->
+      <ellipse cx="150" cy="45" rx="60" ry="18" fill="white" opacity=".08"/>
+      <ellipse cx="500" cy="38" rx="70" ry="20" fill="white" opacity=".07"/>
+      <ellipse cx="720" cy="50" rx="55" ry="16" fill="white" opacity=".08"/>
+      <!-- Sun -->
+      <circle cx="780" cy="48" r="22" fill="#f0c040" opacity=".7"/>
+      <!-- ZONE A: Dry Land (far left) -->
+      <rect x="0" y="100" width="180" height="80" fill="#5a3e10"/>
+      <rect x="0" y="100" width="180" height="20" fill="#7a5a20"/>
+      <!-- Dry land surface with grass -->
+      <rect x="0" y="98" width="180" height="6" fill="#6a8a20"/>
+      <line x1="20" y1="100" x2="16" y2="82" stroke="#8b9a30" stroke-width="2"/>
+      <line x1="28" y1="100" x2="32" y2="80" stroke="#9aaa35" stroke-width="2"/>
+      <line x1="60" y1="100" x2="56" y2="83" stroke="#8b9a30" stroke-width="2"/>
+      <line x1="68" y1="100" x2="72" y2="81" stroke="#9aaa35" stroke-width="2"/>
+      <line x1="120" y1="100" x2="116" y2="82" stroke="#8b9a30" stroke-width="2"/>
+      <line x1="128" y1="100" x2="132" y2="80" stroke="#9aaa35" stroke-width="2"/>
+      <line x1="160" y1="100" x2="156" y2="84" stroke="#8b9a30" stroke-width="2"/>
+      <!-- Dry land label -->
+      <rect x="0" y="180" width="178" height="46" fill="rgba(0,0,0,.5)"/>
+      <text x="89" y="196" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="#d47800" text-anchor="middle" letter-spacing="1">DRY LAND</text>
+      <text x="89" y="210" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.5)" text-anchor="middle">Far from water</text>
+      <text x="89" y="222" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)" text-anchor="middle">Dry soil, grass only</text>
+      <!-- ZONE B: Moist bank / transition zone -->
+      <rect x="180" y="100" width="200" height="80" fill="#4a3a18"/>
+      <rect x="180" y="100" width="200" height="20" fill="#5a4a22"/>
+      <!-- Moist ground -->
+      <rect x="180" y="98" width="200" height="6" fill="#3a5a28"/>
+      <!-- Reeds and water plants -->
+      <line x1="210" y1="100" x2="206" y2="65" stroke="#4a7a30" stroke-width="3"/>
+      <ellipse cx="206" cy="60" rx="5" ry="14" fill="#5a8a38"/>
+      <line x1="240" y1="100" x2="244" y2="62" stroke="#4a7a30" stroke-width="3"/>
+      <ellipse cx="244" cy="57" rx="5" ry="14" fill="#5a8a38"/>
+      <line x1="290" y1="100" x2="286" y2="64" stroke="#4a7a30" stroke-width="3"/>
+      <ellipse cx="286" cy="59" rx="5" ry="14" fill="#5a8a38"/>
+      <line x1="340" y1="100" x2="344" y2="66" stroke="#4a7a30" stroke-width="3"/>
+      <ellipse cx="344" cy="61" rx="5" ry="14" fill="#5a8a38"/>
+      <line x1="360" y1="100" x2="356" y2="63" stroke="#4a7a30" stroke-width="3"/>
+      <ellipse cx="356" cy="58" rx="5" ry="14" fill="#5a8a38"/>
+      <!-- Puddles -->
+      <ellipse cx="270" cy="118" rx="22" ry="8" fill="#2a6a8a" opacity=".7"/>
+      <ellipse cx="335" cy="125" rx="16" ry="6" fill="#2a6a8a" opacity=".6"/>
+      <!-- Moist zone label -->
+      <rect x="180" y="180" width="200" height="46" fill="rgba(0,0,0,.5)"/>
+      <text x="280" y="196" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="#4dbf7a" text-anchor="middle" letter-spacing="1">MOIST BANK</text>
+      <text x="280" y="210" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.55)" text-anchor="middle">Land meets water</text>
+      <text x="280" y="222" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.45)" text-anchor="middle">Wet soil, reeds, puddles</text>
+      <!-- ZONE C: Shallow Water (river edge) -->
+      <rect x="380" y="100" width="240" height="80" fill="url(#water-cs)" opacity=".85"/>
+      <!-- Lily pads on shallow water -->
+      <ellipse cx="420" cy="130" rx="22" ry="10" fill="#2a7030" opacity=".9"/>
+      <ellipse cx="470" cy="120" rx="18" ry="8" fill="#256028" opacity=".9"/>
+      <ellipse cx="540" cy="132" rx="25" ry="11" fill="#2a7030" opacity=".9"/>
+      <ellipse cx="590" cy="118" rx="20" ry="9" fill="#256028" opacity=".9"/>
+      <circle cx="420" cy="126" r="5" fill="#ff8899" opacity=".9"/>
+      <circle cx="540" cy="126" r="5" fill="#ffccdd" opacity=".9"/>
+      <!-- Water surface line -->
+      <path d="M380 104 Q400 100 420 104 Q440 108 460 104 Q480 100 500 104 Q520 108 540 104 Q560 100 580 104 Q600 108 620 104 L620 106 L380 106Z" fill="#4aa8d0" opacity=".5"/>
+      <!-- Shallow water label -->
+      <rect x="380" y="180" width="240" height="46" fill="rgba(0,0,0,.5)"/>
+      <text x="500" y="196" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="#48b4e0" text-anchor="middle" letter-spacing="1">SHALLOW WATER</text>
+      <text x="500" y="210" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.55)" text-anchor="middle">River edge · 0.5–2m deep</text>
+      <text x="500" y="222" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.45)" text-anchor="middle">Lily pads, reeds, frogs</text>
+      <!-- ZONE D: Deep River Centre -->
+      <rect x="620" y="100" width="240" height="80" fill="#0a3a60"/>
+      <rect x="620" y="100" width="240" height="80" fill="#083060" opacity=".8"/>
+      <!-- Current lines -->
+      <path d="M640 130 Q700 125 760 132 Q800 136 860 130" stroke="rgba(72,180,224,.2)" stroke-width="2" fill="none"/>
+      <path d="M640 148 Q700 143 760 150 Q800 154 860 148" stroke="rgba(72,180,224,.18)" stroke-width="2" fill="none"/>
+      <path d="M640 115 Q700 110 760 117 Q800 120 860 115" stroke="rgba(72,180,224,.15)" stroke-width="1.5" fill="none"/>
+      <!-- Deep river label -->
+      <rect x="620" y="180" width="240" height="46" fill="rgba(0,0,0,.5)"/>
+      <text x="740" y="196" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="#2870a8" text-anchor="middle" letter-spacing="1">DEEP RIVER</text>
+      <text x="740" y="210" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.5)" text-anchor="middle">Fast current · 5–10m deep</text>
+      <text x="740" y="222" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)" text-anchor="middle">Strong flow, few plants</text>
+      <!-- Ground below water -->
+      <rect x="380" y="180" width="480" height="0"/>
+      <rect x="0" y="226" width="860" height="54" fill="#2a1e08"/>
+      <!-- Rock/sediment layer -->
+      <rect x="0" y="240" width="860" height="40" fill="#1e1408" opacity=".8"/>
+      <!-- Burrowing creatures underground -->
+      <text x="80" y="255" font-size="16">🦎</text><text x="300" y="252" font-size="14">🐛</text><text x="500" y="255" font-size="16">🦀</text><text x="700" y="252" font-size="14">🐟</text>
+      <!-- Surface creatures (positioned in correct zones) -->
+      <text x="30" y="92" font-size="20">🐦</text>
+      <text x="215" y="88" font-size="24">🐸</text>
+      <text x="330" y="85" font-size="22">🐸</text>
+      <text x="430" y="95" font-size="18">🐢</text>
+      <text x="550" y="96" font-size="20">🦆</text>
+      <text x="680" y="88" font-size="18">🐟</text>
+      <!-- Zone separator lines -->
+      <line x1="180" y1="96" x2="180" y2="230" stroke="rgba(240,192,64,.2)" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <line x1="380" y1="96" x2="380" y2="230" stroke="rgba(240,192,64,.2)" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <line x1="620" y1="96" x2="620" y2="230" stroke="rgba(240,192,64,.2)" stroke-width="1.5" stroke-dasharray="5,4"/>
+    </svg>`,
+  text:"This cross-section shows a riverbank from the side. A frog needs BOTH water to lay eggs and moist land to rest on. It breathes through its skin so must stay damp, but cannot survive deep fast-flowing water. Which zone is its ideal home?",
+  hint:"Look at the four zones in the cross-section. The frog can't live too far from water (it dries out) and can't live in deep fast water (it gets swept away). It needs the zone RIGHT WHERE land and water meet.",
+  funfact:"Amphibian literally means 'double life' — from Greek 'amphi' (both) + 'bios' (life). Frogs live a double life: as tadpoles they breathe underwater, as adults they breathe air but must keep their skin moist. The moist bank is perfect — land AND water together!",
+  options:[
+    {letter:"A", img:`<rect width="200" height="100" fill="#5a3e10"/><rect x="0" y="0" width="200" height="6" fill="#6a8a20"/><line x1="30" y1="6" x2="26" y2="-10" stroke="#8b9a30" stroke-width="3"/><line x1="60" y1="6" x2="64" y2="-12" stroke="#9aaa35" stroke-width="2"/><line x1="100" y1="6" x2="96" y2="-10" stroke="#8b9a30" stroke-width="3"/><text x="8" y="60" font-family="sans-serif" font-size="10" fill="#d47800" font-weight="900">DRY LAND</text><text x="8" y="74" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.5)">Far from water, dry soil</text>`, title:"Dry Land — no water nearby", desc:"Too dry for a frog's skin, no water to breed", correct:false},
+    {letter:"B", img:`<rect width="200" height="100" fill="#4a3a18"/><rect x="0" y="0" width="200" height="6" fill="#3a5a28"/><line x1="40" y1="6" x2="36" y2="-18" stroke="#4a7a30" stroke-width="4"/><ellipse cx="36" cy="-23" rx="5" ry="14" fill="#5a8a38"/><line x1="100" y1="6" x2="104" y2="-20" stroke="#4a7a30" stroke-width="4"/><ellipse cx="104" cy="-25" rx="5" ry="14" fill="#5a8a38"/><ellipse cx="155" cy="40" rx="20" ry="8" fill="#2a6a8a" opacity=".7"/><text x="60" y="65" font-size="26">🐸</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#4dbf7a" font-weight="900">MOIST BANK</text>`, title:"Moist Bank — land-water boundary", desc:"Wet soil, puddles, reeds — land AND water", correct:true},
+    {letter:"C", img:`<rect width="200" height="100" fill="#1a7aaa"/><ellipse cx="60" cy="55" rx="22" ry="10" fill="#2a7030" opacity=".9"/><ellipse cx="140" cy="48" rx="18" ry="8" fill="#256028" opacity=".9"/><circle cx="60" cy="50" r="5" fill="#ff8899" opacity=".9"/><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#48b4e0" font-weight="900">SHALLOW WATER</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.45)">Lily pads, 0.5–2m deep</text>`, title:"Shallow Water — lily pad zone", desc:"Too submerged for an adult frog to rest on land", correct:false},
+    {letter:"D", img:`<rect width="200" height="100" fill="#0a3a60"/><path d="M0 40 Q60 34 120 42 Q160 46 200 40" stroke="rgba(72,180,224,.3)" stroke-width="2" fill="none"/><path d="M0 60 Q60 54 120 62 Q160 66 200 60" stroke="rgba(72,180,224,.25)" stroke-width="2" fill="none"/><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#2870a8" font-weight="900">DEEP RIVER</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">5-10m, fast current</text>`, title:"Deep River — fast-flowing centre", desc:"Strong current, too deep, frog would be swept away", correct:false},
+  ]
+},
+
+/* ══════════════ AMPHIBIAN Q2 — FOOD WEB ══════════════ */
+{
+  zone:"🐸 Amphibian", zoneName:"Q4 · Amphibian Zone", skillTag:"FOOD WEB",
+  skillRibbon:"FOOD WEB", zoneRibbon:"🐸 Amphibian",
+  animal:"🐸",
+  /* Food web spatial diagram */
+  diagramSVG:`
+    <svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background -->
+      <rect width="860" height="280" fill="#060e08"/>
+      <rect x="0" y="0" width="860" height="20" fill="rgba(0,0,0,.6)"/>
+      <text x="430" y="14" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(240,192,64,.7)" text-anchor="middle" letter-spacing="3">WETLAND FOOD WEB — SPATIAL DIAGRAM</text>
+      <!-- Energy flow arrows (bottom to top = energy flows upward) -->
+      <!-- LEVEL 1: Producers (bottom) — Sun → Plants -->
+      <rect x="0" y="240" width="860" height="40" fill="rgba(240,192,64,.05)" rx="0"/>
+      <text x="430" y="272" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(240,192,64,.4)" text-anchor="middle" letter-spacing="2">LEVEL 1 — PRODUCERS (make their own food from sunlight)</text>
+      <!-- Plants/algae nodes -->
+      <circle cx="140" cy="250" r="24" fill="#1a4a10" stroke="#2a8a20" stroke-width="2"/>
+      <text x="140" y="256" font-size="22" text-anchor="middle">🌿</text>
+      <text x="140" y="278" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Algae/Plants</text>
+      <circle cx="350" cy="250" r="24" fill="#1a4a10" stroke="#2a8a20" stroke-width="2"/>
+      <text x="350" y="256" font-size="22" text-anchor="middle">🍃</text>
+      <text x="350" y="278" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Water Plants</text>
+      <circle cx="560" cy="250" r="24" fill="#1a4a10" stroke="#2a8a20" stroke-width="2"/>
+      <text x="560" y="256" font-size="22" text-anchor="middle">🌾</text>
+      <text x="560" y="278" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Reeds/Grass</text>
+      <circle cx="720" cy="250" r="24" fill="#1a4a10" stroke="#2a8a20" stroke-width="2"/>
+      <text x="720" y="256" font-size="22" text-anchor="middle">🍀</text>
+      <text x="720" y="278" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Moss/Pondweed</text>
+      <!-- LEVEL 2: Primary Consumers -->
+      <rect x="0" y="165" width="860" height="40" fill="rgba(77,191,122,.04)" rx="0"/>
+      <text x="430" y="198" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(77,191,122,.4)" text-anchor="middle" letter-spacing="2">LEVEL 2 — PRIMARY CONSUMERS (eat plants)</text>
+      <circle cx="200" cy="178" r="26" fill="#0a2a10" stroke="#1e7a30" stroke-width="2"/>
+      <text x="200" y="184" font-size="24" text-anchor="middle">🦗</text>
+      <text x="200" y="200" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Insects</text>
+      <circle cx="430" cy="178" r="26" fill="#0a2a10" stroke="#1e7a30" stroke-width="2"/>
+      <text x="430" y="184" font-size="24" text-anchor="middle">🐌</text>
+      <text x="430" y="200" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Snails/Worms</text>
+      <circle cx="660" cy="178" r="26" fill="#0a2a10" stroke="#1e7a30" stroke-width="2"/>
+      <text x="660" y="184" font-size="24" text-anchor="middle">🦐</text>
+      <text x="660" y="200" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Small Shrimp</text>
+      <!-- LEVEL 3: Secondary Consumers — THIS IS WHERE FROG IS -->
+      <rect x="0" y="90" width="860" height="40" fill="rgba(91,168,214,.04)" rx="0"/>
+      <text x="430" y="122" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(91,168,214,.4)" text-anchor="middle" letter-spacing="2">LEVEL 3 — SECONDARY CONSUMERS (eat primary consumers)</text>
+      <!-- FROG NODE — highlighted with ? -->
+      <circle cx="280" cy="103" r="30" fill="#0a2820" stroke="#f0c040" stroke-width="3"/>
+      <text x="280" y="110" font-size="26" text-anchor="middle">❓</text>
+      <text x="280" y="126" font-family="'Nunito',sans-serif" font-size="8" fill="var(--gold)" text-anchor="middle" font-weight="900">MYSTERY ANIMAL</text>
+      <!-- Other level 3 animals -->
+      <circle cx="580" cy="103" r="26" fill="#0a2820" stroke="#1e7a30" stroke-width="2"/>
+      <text x="580" y="110" font-size="24" text-anchor="middle">🦎</text>
+      <text x="580" y="124" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Lizards</text>
+      <!-- LEVEL 4: Apex Predators -->
+      <rect x="0" y="22" width="860" height="35" fill="rgba(224,80,64,.04)" rx="0"/>
+      <text x="430" y="48" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(224,80,64,.4)" text-anchor="middle" letter-spacing="2">LEVEL 4 — APEX PREDATORS (eat secondary consumers)</text>
+      <circle cx="430" cy="35" r="24" fill="#1a0a08" stroke="#8a2a20" stroke-width="2"/>
+      <text x="430" y="42" font-size="22" text-anchor="middle">🐍</text>
+      <text x="430" y="55" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Snake</text>
+      <circle cx="700" cy="35" r="24" fill="#1a0a08" stroke="#8a2a20" stroke-width="2"/>
+      <text x="700" y="42" font-size="22" text-anchor="middle">🦅</text>
+      <text x="700" y="55" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Heron/Eagle</text>
+      <!-- Arrows: energy flows upward (level 1→2→3→4) -->
+      <!-- Plants → Insects -->
+      <line x1="155" y1="226" x2="192" y2="204" stroke="rgba(77,191,122,.4)" stroke-width="1.5" marker-end="url(#arr-g)"/>
+      <line x1="350" y1="226" x2="420" y2="204" stroke="rgba(77,191,122,.4)" stroke-width="1.5"/>
+      <line x1="560" y1="226" x2="650" y2="204" stroke="rgba(77,191,122,.4)" stroke-width="1.5"/>
+      <!-- Consumers → Mystery animal -->
+      <line x1="200" y1="152" x2="268" y2="128" stroke="rgba(91,168,214,.4)" stroke-width="1.5"/>
+      <line x1="430" y1="152" x2="298" y2="128" stroke="rgba(91,168,214,.4)" stroke-width="1.5"/>
+      <line x1="660" y1="152" x2="576" y2="128" stroke="rgba(91,168,214,.4)" stroke-width="1.5"/>
+      <!-- Level 3 → Apex -->
+      <line x1="280" y1="74" x2="410" y2="55" stroke="rgba(224,80,64,.4)" stroke-width="1.5"/>
+      <line x1="580" y1="78" x2="690" y2="55" stroke="rgba(224,80,64,.4)" stroke-width="1.5"/>
+      <!-- Arrowhead markers -->
+      <defs>
+        <marker id="arr-g" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <polygon points="0,0 8,4 0,8" fill="rgba(77,191,122,.5)"/>
+        </marker>
+      </defs>
+      <!-- Energy direction label -->
+      <text x="24" y="270" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(240,192,64,.3)">↑ Energy flows upward</text>
+    </svg>`,
+  text:"Look at the food web diagram. The mystery animal (❓ Level 3) eats insects, snails and small shrimp. It is eaten by snakes and herons. It lays eggs in water and can jump between land and water. What is the mystery animal at Level 3?",
+  hint:"Read the POSITION carefully — this animal is in Level 3, meaning it eats Level 2 animals (insects, snails, shrimp). It is eaten by Level 4 predators (snakes and eagles). Which amphibian fits this middle position in the wetland food web?",
+  funfact:"In a food web, the POSITION of an animal tells you everything — what it eats and what eats it. Frogs sit in the middle as secondary consumers. Remove frogs and insects would overpopulate; remove frogs and snakes would starve. Every position matters!",
+  options:[
+    {letter:"A", img:`<rect width="200" height="100" fill="#1a0a08"/><text x="70" y="62" font-size="36">🐍</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(224,80,64,.8)" font-weight="900">APEX PREDATOR</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Level 4 — eats frogs</text>`, title:"Snake — Level 4 Apex Predator", desc:"Sits above Level 3, eats the mystery animal", correct:false},
+    {letter:"B", img:`<rect width="200" height="100" fill="#1a4a10"/><text x="70" y="62" font-size="36">🌿</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(77,191,122,.8)" font-weight="900">PRODUCER</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Level 1 — makes food from sun</text>`, title:"Water Plants — Level 1 Producer", desc:"At the base; makes food, does not eat animals", correct:false},
+    {letter:"C", img:`<rect width="200" height="100" fill="#0a2820"/><text x="70" y="62" font-size="36">🐸</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#48b4e0" font-weight="900">SECONDARY CONSUMER</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Level 3 — eats insects &amp; shrimp</text>`, title:"Frog — Level 3 Secondary Consumer", desc:"Eats insects and shrimp; eaten by snakes and herons", correct:true},
+    {letter:"D", img:`<rect width="200" height="100" fill="#0a2a10"/><text x="70" y="62" font-size="36">🦗</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(77,191,122,.8)" font-weight="900">PRIMARY CONSUMER</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Level 2 — eats plants only</text>`, title:"Insects — Level 2 Primary Consumer", desc:"Below Level 3; eats plants, is eaten by the mystery animal", correct:false},
+  ]
+},
+
+/* ══════════════ AERIAL Q1 — ALTITUDE LAYERS ══════════════ */
+{
+  zone:"🦅 Aerial", zoneName:"Q5 · Aerial Zone", skillTag:"ALTITUDE LAYERS",
+  skillRibbon:"ALTITUDE LAYERS", zoneRibbon:"🦅 Aerial",
+  animal:"🦅",
+  /* Mountain altitude cross-section */
+  diagramSVG:`
+    <svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="alt-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#020408"/><stop offset="30%" stop-color="#060c18"/><stop offset="60%" stop-color="#0a1e30"/><stop offset="100%" stop-color="#1a3a60"/></linearGradient>
+        <linearGradient id="mount-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3040"/><stop offset="50%" stop-color="#2a2030"/><stop offset="100%" stop-color="#1a1220"/></linearGradient>
+      </defs>
+      <rect width="860" height="280" fill="url(#alt-sky)"/>
+      <!-- View label -->
+      <rect x="0" y="0" width="860" height="20" fill="rgba(0,0,0,.6)"/>
+      <text x="430" y="14" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(240,192,64,.7)" text-anchor="middle" letter-spacing="3">SIDE VIEW — MOUNTAIN ALTITUDE ZONES</text>
+      <!-- Altitude band backgrounds -->
+      <!-- Band 4: Near Space / Very High Atmosphere (top) -->
+      <rect x="0" y="20" width="860" height="40" fill="rgba(0,5,15,.6)"/>
+      <!-- Band 3: High Alpine (thin air) -->
+      <rect x="0" y="60" width="860" height="45" fill="rgba(10,20,40,.5)"/>
+      <!-- Band 2: Montane / Cliff Zone -->
+      <rect x="0" y="105" width="860" height="55" fill="rgba(20,30,50,.4)"/>
+      <!-- Band 1: Forest Belt -->
+      <rect x="0" y="160" width="860" height="50" fill="rgba(10,30,15,.4)"/>
+      <!-- Band 0: Ground / Valley -->
+      <rect x="0" y="210" width="860" height="70" fill="rgba(30,20,5,.5)"/>
+      <!-- Mountain shape -->
+      <polygon points="0,280 140,60 280,280" fill="url(#mount-l)" opacity=".95"/>
+      <polygon points="0,280 140,100 280,280" fill="#2a1e2a" opacity=".5"/>
+      <polygon points="200,280 360,40 520,280" fill="url(#mount-l)" opacity=".9"/>
+      <polygon points="200,280 360,80 520,280" fill="#2a1e30" opacity=".5"/>
+      <polygon points="420,280 600,55 780,280" fill="url(#mount-l)" opacity=".95"/>
+      <polygon points="420,280 600,92 780,280" fill="#2a1e2a" opacity=".5"/>
+      <polygon points="640,280 800,80 860,200 860,280" fill="url(#mount-l)" opacity=".8"/>
+      <!-- Snow caps -->
+      <polygon points="140,60 126,92 154,92" fill="white" opacity=".8"/>
+      <polygon points="360,40 344,78 376,78" fill="white" opacity=".8"/>
+      <polygon points="600,55 584,90 616,90" fill="white" opacity=".75"/>
+      <polygon points="800,80 786,112 814,112" fill="white" opacity=".75"/>
+      <!-- Forest belt trees on lower slopes -->
+      <rect x="40" y="200" width="5" height="40" rx="2" fill="#2a3a1a"/>
+      <ellipse cx="42" cy="196" rx="12" ry="16" fill="#1a3010"/>
+      <rect x="70" y="198" width="5" height="42" rx="2" fill="#2a3a1a"/>
+      <ellipse cx="72" cy="194" rx="13" ry="17" fill="#1a3010"/>
+      <rect x="310" y="196" width="5" height="44" rx="2" fill="#2a3a1a"/>
+      <ellipse cx="312" cy="192" rx="13" ry="17" fill="#1a3010"/>
+      <rect x="340" y="200" width="5" height="40" rx="2" fill="#2a3a1a"/>
+      <ellipse cx="342" cy="196" rx="12" ry="16" fill="#1a3010"/>
+      <rect x="550" y="198" width="5" height="42" rx="2" fill="#2a3a1a"/>
+      <ellipse cx="552" cy="194" rx="13" ry="17" fill="#1a3010"/>
+      <rect x="580" y="202" width="5" height="38" rx="2" fill="#2a3a1a"/>
+      <ellipse cx="582" cy="198" rx="12" ry="15" fill="#1a3010"/>
+      <!-- Zone labels RIGHT side -->
+      <rect x="706" y="22" width="154" height="36" fill="rgba(0,0,0,.5)"/>
+      <text x="714" y="37" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(180,200,240,.7)" letter-spacing="1">HIGH ATMOSPHERE</text>
+      <text x="714" y="50" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)">8000m+ · No oxygen</text>
+      <rect x="706" y="61" width="154" height="42" fill="rgba(0,0,0,.5)"/>
+      <text x="714" y="76" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(200,220,255,.7)" letter-spacing="1">HIGH ALPINE ZONE</text>
+      <text x="714" y="89" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">3000–8000m</text>
+      <text x="714" y="100" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)">Snow, thin air, extreme cold</text>
+      <rect x="706" y="106" width="154" height="52" fill="rgba(0,0,0,.5)"/>
+      <text x="714" y="121" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#f0c040" letter-spacing="1">CLIFF &amp; SKY ZONE</text>
+      <text x="714" y="134" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.5)">1000–3000m</text>
+      <text x="714" y="146" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Rocky cliffs, thermals</text>
+      <text x="714" y="156" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)">Eagles nest HERE ▼</text>
+      <rect x="706" y="161" width="154" height="47" fill="rgba(0,0,0,.5)"/>
+      <text x="714" y="176" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(77,191,122,.7)" letter-spacing="1">FOREST BELT</text>
+      <text x="714" y="189" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">500–1000m</text>
+      <text x="714" y="200" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)">Dense trees, closed canopy</text>
+      <rect x="706" y="211" width="154" height="46" fill="rgba(0,0,0,.5)"/>
+      <text x="714" y="226" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#d47800" letter-spacing="1">VALLEY / GROUND</text>
+      <text x="714" y="239" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">0–500m</text>
+      <text x="714" y="250" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)">Farmland, rivers, towns</text>
+      <!-- Altitude measurement arrow -->
+      <line x1="692" y1="22" x2="692" y2="275" stroke="rgba(240,192,64,.3)" stroke-width="1.5"/>
+      <polygon points="688,22 692,12 696,22" fill="rgba(240,192,64,.3)"/>
+      <text x="680" y="155" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(240,192,64,.3)" transform="rotate(-90,680,155)">ALTITUDE</text>
+      <!-- Creatures placed in correct zones -->
+      <text x="120" y="70" font-size="22" opacity=".5">🛸</text>
+      <text x="300" y="85" font-size="22" opacity=".6">🦅</text>
+      <text x="480" y="80" font-size="22">🦅</text>
+      <text x="150" y="130" font-size="24">🦅</text>
+      <text x="390" y="125" font-size="20">🦉</text>
+      <text x="90" y="182" font-size="20">🦜</text>
+      <text x="320" y="175" font-size="18">🐒</text>
+      <text x="520" y="180" font-size="20">🦜</text>
+      <text x="40" y="230" font-size="22">🦁</text>
+      <text x="200" y="235" font-size="20">🦌</text>
+      <text x="380" y="232" font-size="18">🐄</text>
+      <!-- Horizontal band lines -->
+      <line x1="0" y1="60" x2="700" y2="60" stroke="rgba(240,192,64,.12)" stroke-width="1" stroke-dasharray="6,5"/>
+      <line x1="0" y1="105" x2="700" y2="105" stroke="rgba(240,192,64,.15)" stroke-width="1" stroke-dasharray="6,5"/>
+      <line x1="0" y1="160" x2="700" y2="160" stroke="rgba(240,192,64,.12)" stroke-width="1" stroke-dasharray="6,5"/>
+      <line x1="0" y1="210" x2="700" y2="210" stroke="rgba(240,192,64,.1)" stroke-width="1" stroke-dasharray="6,5"/>
+    </svg>`,
+  text:"Study the altitude cross-section. An eagle soars on rising warm air currents called thermals, builds its massive nest (an eyrie) on exposed cliff faces, and dives from great height to catch prey on the ground far below. Which altitude zone does the eagle primarily occupy?",
+  hint:"The eagle needs: high enough to soar on thermals, cliff faces to nest on, AND clear sightlines to the valley below. Which zone has all three? It can't be too high (no oxygen for prey) and can't be in the valley (too enclosed).",
+  funfact:"Eagles use thermals — columns of rising warm air — to soar without flapping. By circling inside a thermal they can climb thousands of metres using zero energy. The cliff and sky zone between 1000–3000m gives them rising air, cliff nesting spots, AND a wide view of the valley below.",
+  options:[
+    {letter:"A", img:`<rect width="200" height="100" fill="rgba(0,5,15,.9)"/><text x="70" y="62" font-size="32" opacity=".5">🛸</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(180,200,240,.7)" font-weight="900">HIGH ATMOSPHERE</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.35)">8000m+ · No oxygen at all</text>`, title:"High Atmosphere — 8000m+", desc:"No oxygen, no prey, no cliff face to nest on", correct:false},
+    {letter:"B", img:`<rect width="200" height="100" fill="rgba(10,20,40,.9)"/><text x="28" y="70" font-size="26">🧊</text><text x="90" y="62" font-size="28">❄️</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(200,220,255,.7)" font-weight="900">HIGH ALPINE ZONE</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">3000-8000m · Snow, thin air</text>`, title:"High Alpine Zone — 3000–8000m", desc:"Snow-covered, thin air, too cold for cliff nesting", correct:false},
+    {letter:"C", img:`<rect width="200" height="100" fill="rgba(20,30,50,.9)"/><text x="30" y="70" font-size="32">🦅</text><text x="100" y="62" font-size="24">🏔️</text><text x="155" y="70" font-size="22">☁️</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#f0c040" font-weight="900">CLIFF &amp; SKY ZONE</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.5)">1000-3000m · Thermals &amp; cliffs</text>`, title:"Cliff & Sky Zone — 1000–3000m", desc:"Thermal updrafts, exposed cliffs, perfect sightlines", correct:true},
+    {letter:"D", img:`<rect width="200" height="100" fill="rgba(10,30,15,.9)"/><text x="25" y="72" font-size="28">🌲</text><text x="85" y="66" font-size="32">🐒</text><text x="148" y="72" font-size="26">🌲</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(77,191,122,.7)" font-weight="900">FOREST BELT</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">500-1000m · Dense canopy</text>`, title:"Forest Belt — 500–1000m", desc:"Closed canopy blocks thermals, no cliff faces", correct:false},
+  ]
+},
+
+/* ══════════════ AERIAL Q2 — FOREST CANOPY MAP ══════════════ */
+{
+  zone:"🦅 Aerial", zoneName:"Q6 · Aerial Zone", skillTag:"CROSS-SECTION",
+  skillRibbon:"CROSS-SECTION", zoneRibbon:"🦅 Aerial",
+  animal:"🦜",
+  /* Forest canopy cross-section showing 4 layers */
+  diagramSVG:`
+    <svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+      <rect width="860" height="280" fill="#060e06"/>
+      <rect x="0" y="0" width="860" height="20" fill="rgba(0,0,0,.6)"/>
+      <text x="430" y="14" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(240,192,64,.7)" text-anchor="middle" letter-spacing="3">FOREST CROSS-SECTION — VERTICAL LAYERS</text>
+      <!-- Sky above -->
+      <rect x="0" y="20" width="860" height="40" fill="#0a0e18"/>
+      <circle cx="770" cy="38" r="18" fill="#f0c040" opacity=".7"/>
+      <!-- LAYER 4: Emergent Layer (tallest trees, poke above canopy) -->
+      <rect x="0" y="60" width="860" height="45" fill="rgba(20,50,10,.3)"/>
+      <text x="6" y="78" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(240,192,64,.7)" letter-spacing="1">EMERGENT LAYER</text>
+      <text x="6" y="92" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">30–70m · Tallest trees</text>
+      <!-- Emergent tree tops -->
+      <ellipse cx="160" cy="70" rx="30" ry="18" fill="#1a5010" opacity=".9"/>
+      <ellipse cx="380" cy="65" rx="35" ry="20" fill="#1a5010" opacity=".9"/>
+      <ellipse cx="580" cy="72" rx="28" ry="17" fill="#1a5010" opacity=".9"/>
+      <ellipse cx="760" cy="67" rx="32" ry="19" fill="#1a5010" opacity=".9"/>
+      <!-- LAYER 3: Canopy (main continuous layer) -->
+      <rect x="0" y="105" width="860" height="60" fill="rgba(15,60,10,.4)"/>
+      <text x="6" y="122" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#4dbf7a" letter-spacing="1">CANOPY LAYER</text>
+      <text x="6" y="135" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.45)">20–30m · Dense roof of leaves</text>
+      <text x="6" y="148" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)">Blocks 95% of sunlight below</text>
+      <!-- Canopy crowns -->
+      <ellipse cx="120" cy="125" rx="52" ry="24" fill="#1e6814" opacity=".9"/>
+      <ellipse cx="230" cy="118" rx="58" ry="26" fill="#186010" opacity=".9"/>
+      <ellipse cx="350" cy="122" rx="55" ry="25" fill="#1e6814" opacity=".9"/>
+      <ellipse cx="480" cy="116" rx="60" ry="27" fill="#186010" opacity=".9"/>
+      <ellipse cx="610" cy="120" rx="54" ry="25" fill="#1e6814" opacity=".9"/>
+      <ellipse cx="730" cy="114" rx="58" ry="26" fill="#186010" opacity=".9"/>
+      <!-- LAYER 2: Understory -->
+      <rect x="0" y="165" width="860" height="55" fill="rgba(10,35,8,.4)"/>
+      <text x="6" y="182" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(77,160,50,.7)" letter-spacing="1">UNDERSTORY LAYER</text>
+      <text x="6" y="195" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">5–20m · Small trees &amp; shrubs</text>
+      <text x="6" y="208" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.3)">Low light, shade-adapted plants</text>
+      <!-- Understory shrubs -->
+      <ellipse cx="95" cy="188" rx="30" ry="16" fill="#145010" opacity=".8"/>
+      <ellipse cx="200" cy="182" rx="35" ry="18" fill="#145010" opacity=".8"/>
+      <ellipse cx="330" cy="186" rx="32" ry="16" fill="#145010" opacity=".8"/>
+      <ellipse cx="460" cy="180" rx="36" ry="18" fill="#145010" opacity=".8"/>
+      <ellipse cx="590" cy="184" rx="30" ry="16" fill="#145010" opacity=".8"/>
+      <ellipse cx="720" cy="178" rx="34" ry="17" fill="#145010" opacity=".8"/>
+      <!-- LAYER 1: Forest Floor -->
+      <rect x="0" y="220" width="860" height="60" fill="rgba(20,12,5,.7)"/>
+      <text x="6" y="237" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#8b5e2a" letter-spacing="1">FOREST FLOOR</text>
+      <text x="6" y="250" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">0–5m · Ground level</text>
+      <text x="6" y="263" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.3)">Dark, damp, leaf litter</text>
+      <!-- Tree trunks connecting layers -->
+      <rect x="152" y="88" width="16" height="220" rx="5" fill="#3a2a1a" opacity=".7"/>
+      <rect x="372" y="85" width="16" height="220" rx="5" fill="#3a2a1a" opacity=".7"/>
+      <rect x="572" y="90" width="16" height="220" rx="5" fill="#3a2a1a" opacity=".7"/>
+      <rect x="752" y="86" width="16" height="220" rx="5" fill="#3a2a1a" opacity=".7"/>
+      <!-- Creatures in correct layers -->
+      <text x="260" y="58" font-size="22">🦅</text>
+      <text x="450" y="60" font-size="22">🦇</text>
+      <text x="120" y="110" font-size="20">🦜</text>
+      <text x="350" y="108" font-size="22">🐒</text>
+      <text x="600" y="112" font-size="20">🦜</text>
+      <text x="220" y="172" font-size="18">🐦</text>
+      <text x="480" y="168" font-size="18">🦎</text>
+      <text x="720" y="174" font-size="18">🐦</text>
+      <text x="100" y="250" font-size="22">🐆</text>
+      <text x="300" y="255" font-size="18">🐛</text>
+      <text x="500" y="252" font-size="20">🦔</text>
+      <text x="680" y="254" font-size="18">🐜</text>
+      <!-- Layer divider lines -->
+      <line x1="0" y1="105" x2="860" y2="105" stroke="rgba(240,192,64,.12)" stroke-width="1" stroke-dasharray="6,4"/>
+      <line x1="0" y1="165" x2="860" y2="165" stroke="rgba(240,192,64,.1)" stroke-width="1" stroke-dasharray="6,4"/>
+      <line x1="0" y1="220" x2="860" y2="220" stroke="rgba(240,192,64,.1)" stroke-width="1" stroke-dasharray="6,4"/>
+      <!-- Sunlight penetration arrows -->
+      <line x1="820" y1="28" x2="820" y2="100" stroke="rgba(240,192,64,.3)" stroke-width="2"/>
+      <line x1="820" y1="105" x2="820" y2="160" stroke="rgba(240,192,64,.15)" stroke-width="2"/>
+      <line x1="820" y1="165" x2="820" y2="215" stroke="rgba(240,192,64,.07)" stroke-width="1.5"/>
+      <line x1="820" y1="220" x2="820" y2="275" stroke="rgba(240,192,64,.03)" stroke-width="1"/>
+      <text x="836" y="75" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(240,192,64,.4)" transform="rotate(90,836,75)">FULL SUN</text>
+      <text x="836" y="138" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(240,192,64,.25)" transform="rotate(90,836,138)">SOME LIGHT</text>
+      <text x="836" y="193" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(240,192,64,.13)" transform="rotate(90,836,193)">DIM</text>
+      <text x="836" y="248" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(240,192,64,.06)" transform="rotate(90,836,248)">DARK</text>
+    </svg>`,
+  text:"The cross-section shows a forest divided into 4 vertical layers. A macaw (large parrot) has bright coloured feathers, a powerful curved beak for cracking nuts, and strong wings for flying between treetops. It needs full sunlight and nests in tree hollows high up. Which layer does it live in?",
+  hint:"The macaw needs sunlight (so not the dark floor), needs to fly (not the cramped understory), and nests in tree hollows high up. The continuous dense layer at 20–30m has both sunlight and large hollow trees.",
+  funfact:"Forest layers are like floors in a building — each one has its own climate, sunlight, and residents. The canopy layer gets the most sunlight and is home to 70% of all forest species. Macaws, toucans and most colourful birds live here because their bright colours are only visible in sunlight!",
+  options:[
+    {letter:"A", img:`<rect width="200" height="100" fill="rgba(20,12,5,.9)"/><text x="35" y="68" font-size="24">🐛</text><text x="90" y="65" font-size="26">🐆</text><text x="148" y="68" font-size="22">🍄</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#8b5e2a" font-weight="900">FOREST FLOOR</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.35)">0-5m · Dark, damp, no light</text>`, title:"Forest Floor — ground level (0–5m)", desc:"Too dark, no sunlight, not where tree hollows are", correct:false},
+    {letter:"B", img:`<rect width="200" height="100" fill="rgba(10,35,8,.9)"/><text x="35" y="68" font-size="24">🐦</text><text x="90" y="64" font-size="26">🦎</text><text x="150" y="68" font-size="22">🍃</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(77,160,50,.7)" font-weight="900">UNDERSTORY</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.35)">5-20m · Low light, shrubs</text>`, title:"Understory — 5–20m layer", desc:"Too shaded and cramped for a large-winged macaw", correct:false},
+    {letter:"C", img:`<rect width="200" height="100" fill="rgba(15,60,10,.9)"/><text x="28" y="68" font-size="24">🦜</text><text x="88" y="63" font-size="28">🐒</text><text x="150" y="68" font-size="22">🌿</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#4dbf7a" font-weight="900">CANOPY LAYER</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.5)">20-30m · Full sun, hollow trees</text>`, title:"Canopy Layer — 20–30m above ground", desc:"Full sunlight, large hollow trees, room to fly", correct:true},
+    {letter:"D", img:`<rect width="200" height="100" fill="rgba(20,50,10,.9)"/><text x="35" y="68" font-size="24">🦅</text><text x="100" y="62" font-size="26">🦇</text><text x="155" y="68" font-size="22">☁️</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(240,192,64,.7)" font-weight="900">EMERGENT LAYER</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">30-70m · Exposed, windy</text>`, title:"Emergent Layer — 30–70m (tallest tips)", desc:"Too exposed and windy for nesting; no hollow trunks up here", correct:false},
+  ]
+},
+
+/* ══════════════ TERRESTRIAL Q1 — SOIL CROSS-SECTION ══════════════ */
+{
+  zone:"🦁 Terrestrial", zoneName:"Q7 · Terrestrial Zone", skillTag:"CROSS-SECTION",
+  skillRibbon:"CROSS-SECTION", zoneRibbon:"🦁 Terrestrial",
+  animal:"🦁",
+  /* Savanna soil cross-section showing underground to sky */
+  diagramSVG:`
+    <svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+      <rect width="860" height="280" fill="#04060a"/>
+      <rect x="0" y="0" width="860" height="20" fill="rgba(0,0,0,.6)"/>
+      <text x="430" y="14" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(240,192,64,.7)" text-anchor="middle" letter-spacing="3">CROSS-SECTION — SAVANNA FROM UNDERGROUND TO SKY</text>
+      <!-- SKY -->
+      <rect x="0" y="20" width="860" height="75" fill="#0d0f06"/>
+      <circle cx="780" cy="55" r="36" fill="#f0c040" opacity=".75"/>
+      <circle cx="798" cy="42" r="24" fill="#0d0f06" opacity=".3"/>
+      <!-- Clouds -->
+      <ellipse cx="160" cy="50" rx="70" ry="20" fill="white" opacity=".07"/>
+      <ellipse cx="420" cy="42" rx="80" ry="22" fill="white" opacity=".06"/>
+      <!-- SKY label -->
+      <text x="6" y="60" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(240,192,64,.5)" letter-spacing="1">SKY / AIR</text>
+      <text x="6" y="73" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)">Open air above surface</text>
+      <!-- SURFACE layer (grass) -->
+      <rect x="0" y="95" width="860" height="30" fill="#3a5010"/>
+      <rect x="0" y="95" width="860" height="8" fill="#4a6a18"/>
+      <!-- Grass blades -->
+      <line x1="30" y1="97" x2="26" y2="72" stroke="#7a9a30" stroke-width="2.5"/><line x1="38" y1="97" x2="42" y2="70" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="80" y1="97" x2="76" y2="73" stroke="#7a9a30" stroke-width="2.5"/><line x1="88" y1="97" x2="92" y2="71" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="150" y1="97" x2="146" y2="72" stroke="#7a9a30" stroke-width="2.5"/><line x1="158" y1="97" x2="162" y2="70" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="240" y1="97" x2="236" y2="73" stroke="#7a9a30" stroke-width="2.5"/><line x1="248" y1="97" x2="252" y2="71" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="340" y1="97" x2="336" y2="72" stroke="#7a9a30" stroke-width="2.5"/><line x1="348" y1="97" x2="352" y2="70" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="440" y1="97" x2="436" y2="73" stroke="#7a9a30" stroke-width="2.5"/><line x1="448" y1="97" x2="452" y2="71" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="540" y1="97" x2="536" y2="72" stroke="#7a9a30" stroke-width="2.5"/><line x1="548" y1="97" x2="552" y2="70" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="630" y1="97" x2="626" y2="73" stroke="#7a9a30" stroke-width="2.5"/><line x1="638" y1="97" x2="642" y2="71" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="720" y1="97" x2="716" y2="72" stroke="#7a9a30" stroke-width="2.5"/><line x1="728" y1="97" x2="732" y2="70" stroke="#8aaa35" stroke-width="2"/>
+      <line x1="800" y1="97" x2="796" y2="73" stroke="#7a9a30" stroke-width="2.5"/><line x1="808" y1="97" x2="812" y2="71" stroke="#8aaa35" stroke-width="2"/>
+      <!-- SURFACE label -->
+      <text x="6" y="108" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(240,192,64,.7)" letter-spacing="1">SURFACE LAYER</text>
+      <text x="6" y="120" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.45)">Grass, large animals walk here</text>
+      <!-- TOPSOIL -->
+      <rect x="0" y="125" width="860" height="45" fill="#5a3e10"/>
+      <text x="6" y="142" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#d47800" letter-spacing="1">TOPSOIL LAYER</text>
+      <text x="6" y="155" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.45)">Roots, insects, small burrowers</text>
+      <text x="6" y="167" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.35)">5–30cm depth</text>
+      <!-- Root systems visible -->
+      <path d="M200 125 Q195 140 188 155 M200 125 Q204 138 198 155 M200 125 Q210 142 215 158" stroke="#3a2a1a" stroke-width="3" fill="none" opacity=".6"/>
+      <path d="M450 125 Q444 138 437 152 M450 125 Q454 137 448 150 M450 125 Q462 140 466 155" stroke="#3a2a1a" stroke-width="3" fill="none" opacity=".6"/>
+      <path d="M680 125 Q674 139 667 153 M680 125 Q684 137 678 151 M680 125 Q692 141 697 155" stroke="#3a2a1a" stroke-width="3" fill="none" opacity=".6"/>
+      <!-- SUBSOIL -->
+      <rect x="0" y="170" width="860" height="50" fill="#4a2e08"/>
+      <text x="6" y="188" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="#8b5e2a" letter-spacing="1">SUBSOIL LAYER</text>
+      <text x="6" y="201" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Deep burrowing animals</text>
+      <text x="6" y="213" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.3)">30–100cm depth</text>
+      <!-- BEDROCK -->
+      <rect x="0" y="220" width="860" height="60" fill="#2a1a08"/>
+      <text x="6" y="238" font-family="'Nunito',sans-serif" font-weight="900" font-size="10" fill="rgba(140,100,50,.6)" letter-spacing="1">BEDROCK</text>
+      <text x="6" y="251" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.3)">100cm+ depth · Solid rock</text>
+      <text x="6" y="263" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(245,233,200,.25)">No living things penetrate here</text>
+      <!-- Creatures placed correctly -->
+      <text x="260" y="60" font-size="26">🦅</text>
+      <text x="460" y="68" font-size="22">🦜</text>
+      <text x="580" y="58" font-size="20">🦇</text>
+      <text x="40" y="92" font-size="28">🦁</text>
+      <text x="200" y="91" font-size="24">🦒</text>
+      <text x="340" y="92" font-size="22">🦓</text>
+      <text x="520" y="91" font-size="26">🐘</text>
+      <text x="680" y="91" font-size="22">🦏</text>
+      <text x="820" y="92" font-size="24">🦬</text>
+      <text x="130" y="152" font-size="18">🐜</text>
+      <text x="310" y="148" font-size="16">🦗</text>
+      <text x="530" y="154" font-size="18">🐛</text>
+      <text x="720" y="150" font-size="16">🌱</text>
+      <text x="200" y="202" font-size="20">🦔</text>
+      <text x="420" y="198" font-size="18">🐭</text>
+      <text x="620" y="205" font-size="20">🦡</text>
+      <text x="360" y="252" font-size="18" opacity=".5">🪨</text>
+      <text x="560" y="250" font-size="16" opacity=".4">🪨</text>
+      <!-- Layer dividers -->
+      <line x1="0" y1="95" x2="860" y2="95" stroke="rgba(240,192,64,.2)" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <line x1="0" y1="125" x2="860" y2="125" stroke="rgba(212,120,0,.2)" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <line x1="0" y1="170" x2="860" y2="170" stroke="rgba(139,94,42,.2)" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <line x1="0" y1="220" x2="860" y2="220" stroke="rgba(100,70,20,.2)" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <!-- Depth arrow -->
+      <line x1="840" y1="96" x2="840" y2="275" stroke="rgba(212,120,0,.3)" stroke-width="2"/>
+      <polygon points="836,271 840,280 844,271" fill="rgba(212,120,0,.3)"/>
+      <text x="852" y="185" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(212,120,0,.3)" transform="rotate(90,852,185)">DEPTH ↓</text>
+    </svg>`,
+  text:"This cross-section cuts through a savanna from underground to sky. A meerkat digs a complex tunnel system to shelter from heat and predators. It pops to the surface to forage and uses a lookout to watch for eagles. In which layer(s) does a meerkat primarily live?",
+  hint:"A meerkat tunnels DOWN to sleep and shelter, but comes UP to the surface to eat and watch for danger. Its home spans two layers — which two layers connect underground living with surface foraging?",
+  funfact:"Meerkats build tunnel systems with multiple rooms and entrances going 1–2 metres deep into the subsoil. These underground homes are called burrows. The subsoil layer keeps them cool in 40°C heat and safe from eagles above. They only venture to the surface layer to eat and take their famous 'sentry' stance!",
+  options:[
+    {letter:"A", img:`<rect width="200" height="100" fill="#0d0f06"/><text x="35" y="65" font-size="26">🦅</text><text x="100" y="60" font-size="24">☁️</text><text x="155" y="65" font-size="22">🌤️</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(240,192,64,.5)" font-weight="900">SKY / AIR</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.35)">Open air — no tunnel possible</text>`, title:"Sky / Air — above the surface", desc:"Open air, no burrowing possible here at all", correct:false},
+    {letter:"B", img:`<rect width="200" height="100" fill="#3a5010"/><rect x="0" y="0" width="200" height="8" fill="#4a6a18"/><text x="35" y="70" font-size="28">🦁</text><text x="100" y="64" font-size="24">🦒</text><text x="155" y="70" font-size="22">🌾</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(240,192,64,.7)" font-weight="900">SURFACE LAYER</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Grass level — no shelter here</text>`, title:"Surface Layer only — grass level", desc:"Where it forages, but it can't tunnel here — too exposed", correct:false},
+    {letter:"C", img:`<rect width="200" height="100" fill="#4a2e08"/><ellipse cx="60" cy="60" rx="25" ry="15" fill="#3a2010" opacity=".8"/><ellipse cx="140" cy="52" rx="20" ry="12" fill="#3a2010" opacity=".8"/><text x="72" y="55" font-size="20">🦔</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#8b5e2a" font-weight="900">SUBSOIL + SURFACE</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.45)">Burrow below, forage above</text>`, title:"Subsoil burrow + Surface foraging", desc:"Tunnels into subsoil, emerges to surface — dual-layer living", correct:true},
+    {letter:"D", img:`<rect width="200" height="100" fill="#2a1a08"/><text x="60" y="65" font-size="26" opacity=".5">🪨</text><text x="120" y="60" font-size="22" opacity=".4">🪨</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(140,100,50,.6)" font-weight="900">BEDROCK</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.3)">Solid rock — impossible to dig</text>`, title:"Bedrock — 100cm+ down", desc:"Solid rock, impossible to dig, no animals live here", correct:false},
+  ]
+},
+
+/* ══════════════ TERRESTRIAL Q2 — FOOD WEB ══════════════ */
+{
+  zone:"🦁 Terrestrial", zoneName:"Q8 · Terrestrial Zone", skillTag:"FOOD WEB",
+  skillRibbon:"FOOD WEB", zoneRibbon:"🦁 Terrestrial",
+  animal:"🦁",
+  /* Savanna food web — find lion's position */
+  diagramSVG:`
+    <svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+      <rect width="860" height="280" fill="#0a0c04"/>
+      <rect x="0" y="0" width="860" height="20" fill="rgba(0,0,0,.6)"/>
+      <text x="430" y="14" font-family="'Nunito',sans-serif" font-weight="900" font-size="11" fill="rgba(240,192,64,.7)" text-anchor="middle" letter-spacing="3">SAVANNA FOOD WEB — FIND THE LION'S POSITION</text>
+      <!-- Energy level backgrounds -->
+      <rect x="0" y="240" width="860" height="40" fill="rgba(240,192,64,.04)"/>
+      <text x="430" y="272" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(240,192,64,.4)" text-anchor="middle" letter-spacing="2">LEVEL 1 — PRODUCERS</text>
+      <rect x="0" y="175" width="860" height="40" fill="rgba(77,191,122,.03)"/>
+      <text x="430" y="207" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(77,191,122,.35)" text-anchor="middle" letter-spacing="2">LEVEL 2 — HERBIVORES (primary consumers)</text>
+      <rect x="0" y="100" width="860" height="40" fill="rgba(91,168,214,.03)"/>
+      <text x="430" y="132" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(91,168,214,.35)" text-anchor="middle" letter-spacing="2">LEVEL 3 — OMNIVORES / SMALL PREDATORS</text>
+      <rect x="0" y="28" width="860" height="40" fill="rgba(224,80,64,.04)"/>
+      <text x="430" y="60" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(224,80,64,.35)" text-anchor="middle" letter-spacing="2">LEVEL 4 — APEX PREDATORS</text>
+      <!-- LEVEL 1 Nodes -->
+      <circle cx="120" cy="255" r="22" fill="#1a4a10" stroke="#2a8a20" stroke-width="2"/>
+      <text x="120" y="262" font-size="20" text-anchor="middle">🌾</text>
+      <text x="120" y="278" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Grass</text>
+      <circle cx="300" cy="255" r="22" fill="#1a4a10" stroke="#2a8a20" stroke-width="2"/>
+      <text x="300" y="262" font-size="20" text-anchor="middle">🍃</text>
+      <text x="300" y="278" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Leaves/Trees</text>
+      <circle cx="500" cy="255" r="22" fill="#1a4a10" stroke="#2a8a20" stroke-width="2"/>
+      <text x="500" y="262" font-size="20" text-anchor="middle">🫚</text>
+      <text x="500" y="278" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Berries/Fruit</text>
+      <circle cx="700" cy="255" r="22" fill="#1a4a10" stroke="#2a8a20" stroke-width="2"/>
+      <text x="700" y="262" font-size="20" text-anchor="middle">🌵</text>
+      <text x="700" y="278" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Shrubs/Plants</text>
+      <!-- LEVEL 2 Nodes -->
+      <circle cx="150" cy="190" r="24" fill="#0e2a08" stroke="#1a6a20" stroke-width="2"/>
+      <text x="150" y="197" font-size="22" text-anchor="middle">🦓</text>
+      <text x="150" y="212" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Zebra</text>
+      <circle cx="350" cy="190" r="24" fill="#0e2a08" stroke="#1a6a20" stroke-width="2"/>
+      <text x="350" y="197" font-size="22" text-anchor="middle">🦒</text>
+      <text x="350" y="212" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Giraffe</text>
+      <circle cx="550" cy="190" r="24" fill="#0e2a08" stroke="#1a6a20" stroke-width="2"/>
+      <text x="550" y="197" font-size="22" text-anchor="middle">🦬</text>
+      <text x="550" y="212" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Wildebeest</text>
+      <circle cx="730" cy="190" r="24" fill="#0e2a08" stroke="#1a6a20" stroke-width="2"/>
+      <text x="730" y="197" font-size="22" text-anchor="middle">🐭</text>
+      <text x="730" y="212" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Rodents</text>
+      <!-- LEVEL 3 Nodes -->
+      <circle cx="200" cy="115" r="24" fill="#1a1208" stroke="#6a4a10" stroke-width="2"/>
+      <text x="200" y="122" font-size="22" text-anchor="middle">🦊</text>
+      <text x="200" y="136" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Jackal</text>
+      <circle cx="450" cy="115" r="24" fill="#1a1208" stroke="#6a4a10" stroke-width="2"/>
+      <text x="450" y="122" font-size="22" text-anchor="middle">🐆</text>
+      <text x="450" y="136" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Cheetah</text>
+      <circle cx="680" cy="115" r="24" fill="#1a1208" stroke="#6a4a10" stroke-width="2"/>
+      <text x="680" y="122" font-size="22" text-anchor="middle">🦅</text>
+      <text x="680" y="136" font-family="'Nunito',sans-serif" font-size="8" fill="rgba(245,233,200,.5)" text-anchor="middle">Eagle</text>
+      <!-- LEVEL 4 — MYSTERY = LION -->
+      <circle cx="430" cy="43" r="28" fill="#1a0a04" stroke="#f0c040" stroke-width="3"/>
+      <text x="430" y="50" font-size="26" text-anchor="middle">❓</text>
+      <text x="430" y="68" font-family="'Nunito',sans-serif" font-size="8" fill="var(--gold)" text-anchor="middle" font-weight="900">APEX POSITION</text>
+      <!-- Arrows upward -->
+      <line x1="140" y1="233" x2="148" y2="214" stroke="rgba(77,191,122,.35)" stroke-width="1.5"/>
+      <line x1="300" y1="233" x2="345" y2="214" stroke="rgba(77,191,122,.35)" stroke-width="1.5"/>
+      <line x1="500" y1="233" x2="545" y2="214" stroke="rgba(77,191,122,.35)" stroke-width="1.5"/>
+      <line x1="700" y1="233" x2="734" y2="214" stroke="rgba(77,191,122,.35)" stroke-width="1.5"/>
+      <line x1="155" y1="166" x2="196" y2="138" stroke="rgba(91,168,214,.35)" stroke-width="1.5"/>
+      <line x1="355" y1="166" x2="445" y2="138" stroke="rgba(91,168,214,.35)" stroke-width="1.5"/>
+      <line x1="550" y1="166" x2="460" y2="138" stroke="rgba(91,168,214,.35)" stroke-width="1.5"/>
+      <line x1="730" y1="166" x2="686" y2="138" stroke="rgba(91,168,214,.35)" stroke-width="1.5"/>
+      <line x1="210" y1="92" x2="404" y2="62" stroke="rgba(224,80,64,.4)" stroke-width="1.5"/>
+      <line x1="450" y1="92" x2="432" y2="70" stroke="rgba(224,80,64,.4)" stroke-width="1.5"/>
+      <line x1="678" y1="92" x2="455" y2="62" stroke="rgba(224,80,64,.4)" stroke-width="1.5"/>
+      <!-- Note: nothing eats the apex -->
+      <text x="540" y="48" font-family="'Nunito',sans-serif" font-size="9" fill="rgba(224,80,64,.5)" font-style="italic">← Nothing eats this!</text>
+    </svg>`,
+  text:"Study the savanna food web. The apex position (❓ Level 4) is eaten by nothing, but eats the Level 3 animals — jackals, cheetahs, and eagles. It is the most powerful predator in the grassland. Which animal correctly occupies this apex position?",
+  hint:"The apex position (Level 4) means nothing preys on this animal — it's at the very top. It must eat Level 3 predators like cheetahs. Only one savanna animal is powerful enough to dominate all others and has no natural predators.",
+  funfact:"Lions are apex predators — they sit at the TOP of the food web with no natural predators. Remove lions from a savanna and wildebeest and zebra populations explode, overgraze the grass, and the whole ecosystem collapses. This is why apex predators are called 'keystone species' — like the keystone of an arch, everything depends on them!",
+  options:[
+    {letter:"A", img:`<rect width="200" height="100" fill="#1a4a10"/><text x="55" y="65" font-size="30">🌾</text><text x="120" y="60" font-size="28">🍃</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(240,192,64,.6)" font-weight="900">PRODUCER — LEVEL 1</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.35)">Makes food from sun, eaten by all</text>`, title:"Grass & Plants — Level 1 Producer", desc:"At the base of the web; eaten by everything above", correct:false},
+    {letter:"B", img:`<rect width="200" height="100" fill="#0e2a08"/><text x="30" y="68" font-size="28">🦓</text><text x="90" y="63" font-size="26">🦒</text><text x="155" y="68" font-size="24">🦬</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="rgba(77,191,122,.7)" font-weight="900">HERBIVORE — LEVEL 2</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Eats plants, hunted by predators</text>`, title:"Zebra/Giraffe — Level 2 Herbivore", desc:"Eats plants; is prey for Level 3 and 4 predators", correct:false},
+    {letter:"C", img:`<rect width="200" height="100" fill="#1a1208"/><text x="30" y="68" font-size="28">🦊</text><text x="90" y="63" font-size="26">🐆</text><text x="155" y="68" font-size="24">🦅</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#48b4e0" font-weight="900">PREDATOR — LEVEL 3</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.4)">Hunts prey but IS eaten by apex</text>`, title:"Jackal/Cheetah — Level 3 Predator", desc:"Hunts herbivores but is still preyed on by the apex", correct:false},
+    {letter:"D", img:`<rect width="200" height="100" fill="#1a0a04"/><text x="65" y="65" font-size="42">🦁</text><text x="8" y="90" font-family="sans-serif" font-size="10" fill="#f0c040" font-weight="900">APEX PREDATOR — LEVEL 4</text><text x="8" y="100" font-family="sans-serif" font-size="9" fill="rgba(245,233,200,.45)">Eats all below, nothing eats it</text>`, title:"Lion — Level 4 Apex Predator", desc:"Top of the entire web; dominates all other animals", correct:true},
+  ]
+}
+
+]; // end questions
+
+/* ═════════════════════════════ GAME ENGINE ═════════════════════════════ */
+let curQ=0, score=0, hintVis=false, canAns=true;
+
+/* PARTICLES */
+const canvas=document.getElementById('bg-canvas');
+const ctx=canvas.getContext('2d');
+let particles=[];
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas(); window.addEventListener('resize',resizeCanvas);
+function initParticles(){
+  particles=[];
+  for(let i=0;i<60;i++){
+    particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*1.8+0.5,vx:(Math.random()-.5)*.2,vy:-Math.random()*.3-.05,alpha:Math.random()*.5+.2,color:Math.random()>.6?'#aaff44':'#f0c040',pulse:Math.random()*Math.PI*2,ps:.02+Math.random()*.04});
+  }
+}
+initParticles();
+function animateParticles(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.pulse+=p.ps;
+    const a=p.alpha*(.6+.4*Math.sin(p.pulse));
+    if(p.y<-10){p.y=canvas.height+10;p.x=Math.random()*canvas.width;}
+    if(p.x<0)p.x=canvas.width; if(p.x>canvas.width)p.x=0;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=p.color;ctx.globalAlpha=a;ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+/* SCREENS */
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+function startGame(){curQ=0;score=0;showScreen('s-question');loadQ();}
+
+/* MAP */
+function updateMap(){
+  const N=questions.length;
+  for(let i=0;i<N;i++){
+    const pin=document.getElementById('mp-'+i);
+    const node=document.getElementById('mn-'+i);
+    if(!pin)continue;
+    pin.classList.remove('done','active');
+    node.classList.remove('done','active');
+    if(i<curQ){pin.classList.add('done');node.classList.add('done');}
+    else if(i===curQ){pin.classList.add('active');node.classList.add('active');}
+  }
+  const pct=curQ===0?0:(curQ/N)*82;
+  document.getElementById('map-path-done').style.width=pct+'%';
+  document.getElementById('map-chest').classList.toggle('unlocked',curQ>=N);
+}
+
+/* LOAD QUESTION */
+function loadQ(){
+  canAns=true;hintVis=false;
+  const q=questions[curQ];
+  document.getElementById('hud-zone').textContent=q.zoneName;
+  document.getElementById('hud-pts').textContent=score;
+  document.getElementById('hud-skill').textContent=q.skillTag;
+
+  /* diagram */
+  const banner=document.getElementById('q-banner');
+  const oldSvg=banner.querySelector('svg');
+  if(oldSvg)oldSvg.remove();
+  const tmp=document.createElement('div');
+  tmp.innerHTML=q.diagramSVG.trim();
+  const newSvg=tmp.firstChild;
+  banner.insertBefore(newSvg,banner.firstChild);
+
+  document.getElementById('zone-ribbon').innerHTML=q.zoneRibbon;
+  document.getElementById('skill-ribbon').textContent=q.skillRibbon;
+  document.getElementById('q-pill').innerHTML=q.zone;
+  document.getElementById('q-text').textContent=q.text;
+  document.getElementById('hint-txt').textContent=q.hint;
+  document.getElementById('hint-txt').classList.remove('vis');
+  document.getElementById('hint-tog').textContent='▼ tap to reveal';
+  document.getElementById('ff-text').textContent=q.funfact;
+  document.getElementById('funfact').classList.remove('vis');
+
+  updateMap();
+  buildOpts(q);
+}
+
+/* OPTIONS */
+function buildOpts(q){
+  const grid=document.getElementById('opts');
+  grid.innerHTML='';
+  q.options.forEach(opt=>{
+    const btn=document.createElement('button');
+    btn.className='opt-btn';
+    btn.innerHTML=`<div class="opt-img-strip"><svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">${opt.img}</svg><div class="opt-letter-badge">${opt.letter}</div></div><div class="opt-content"><div class="opt-title">${opt.title}</div><div class="opt-desc">${opt.desc}</div></div>`;
+    btn.onclick=()=>handleAns(opt.correct,btn);
+    grid.appendChild(btn);
+  });
+}
+
+/* ANSWER */
+function handleAns(correct,btn){
+  if(!canAns)return;
+  canAns=false;
+  document.querySelectorAll('.opt-btn').forEach(b=>b.style.pointerEvents='none');
+  if(correct){
+    btn.classList.add('correct');score+=20;
+    document.getElementById('hud-pts').textContent=score;
+    showToast('🎉 Correct spatial reasoning!','success');
+    document.getElementById('funfact').classList.add('vis');
+    setTimeout(()=>{
+      curQ++;
+      if(curQ>=questions.length){showWin();return;}
+      const outer=document.querySelector('.q-outer');
+      outer.style.transition='all .35s ease';outer.style.opacity='0';outer.style.transform='translateY(22px)';
+      setTimeout(()=>{outer.style.opacity='1';outer.style.transform='none';loadQ();},360);
+    },2200);
+  }else{
+    btn.classList.add('wrong');score=Math.max(0,score-5);
+    document.getElementById('hud-pts').textContent=score;
+    showToast("🔍 Look at the diagram again — think spatially!",'error');
+    setTimeout(()=>{
+      btn.classList.remove('wrong');btn.style.pointerEvents='auto';
+      document.querySelectorAll('.opt-btn').forEach(b=>b.style.pointerEvents='auto');
+      canAns=true;
+    },1400);
+  }
+}
+
+/* HINT */
+function toggleHint(){
+  hintVis=!hintVis;
+  document.getElementById('hint-txt').classList.toggle('vis',hintVis);
+  document.getElementById('hint-tog').textContent=hintVis?'▲ hide hint':'▼ tap to reveal';
+  if(hintVis){score=Math.max(0,score-2);document.getElementById('hud-pts').textContent=score;}
+}
+
+/* TOAST */
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  document.getElementById('t-msg').textContent=msg;
+  document.getElementById('t-icon').textContent=type==='success'?'✅':'❌';
+  t.className='toast show '+type;
+  setTimeout(()=>t.className='toast',2500);
+}
+
+/* WIN */
+function showWin(){
+  updateMap();showScreen('s-win');
+  document.getElementById('final-pts').textContent=score;
+  const bdg=document.getElementById('badges');bdg.innerHTML='';
+  [['📐','Cross-Section Reader'],['🌊','Depth Zone Expert'],['🗺️','Map Navigator'],['🕸️','Food Web Analyst'],['🏆','Spatial Master']].forEach(([ico,lbl],i)=>{
+    const d=document.createElement('div');d.className='badge';d.style.animationDelay=(i*.15)+'s';d.innerHTML=`${ico} ${lbl}`;bdg.appendChild(d);
+  });
+  confetti();
+}
+
+/* CONFETTI */
+function confetti(){
+  const cols=['#f0c040','#4dbf7a','#e05040','#5ba8d6','#fde68a','#aaff44','#ff9a3c'];
+  for(let i=0;i<120;i++){
+    const p=document.createElement('div');p.className='cf';
+    p.style.cssText=`left:${Math.random()*100}vw;background:${cols[Math.floor(Math.random()*cols.length)]};animation-duration:${1.5+Math.random()*2.5}s;animation-delay:${Math.random()*1.2}s;width:${5+Math.random()*10}px;height:${5+Math.random()*10}px;border-radius:${Math.random()>.5?'50%':'3px'};`;
+    document.body.appendChild(p);setTimeout(()=>p.remove(),5000);
+  }
+}
+
+function resetGame(){curQ=0;score=0;showScreen('s-start');}
+</script>
+</body>
+</html>
