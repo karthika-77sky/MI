@@ -25,7 +25,7 @@ export default function Results({ user }) {
   if (loading) return <div className="page"><h2 className="glow-text">Loading Analysis...</h2></div>;
 
   const intelligences = [
-    { name: 'Spatial', score: data.Spatial, path: '/learn-spatial', insights: "You excel at visualizing the world in 3D. You likely enjoy puzzles, maps, and designing things." },
+    { name: 'Spatial', score: data.Spatial, path: '/spatial-dashboard', insights: "You excel at visualizing the world in 3D. You likely enjoy puzzles, maps, and designing things." },
     { name: 'Linguistic', score: data.Linguistic, path: '/learn-linguistic', insights: "You have a strong affinity for words, reading, and storytelling. Communication is your forte." },
     { name: 'Musical', score: data.Musical, path: '/learn-musical', insights: "You have a deep connection with rhythm and sound. Music often guides your thoughts and emotions." }
   ];

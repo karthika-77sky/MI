@@ -9,6 +9,7 @@ import Results from './components/Results';
 import LearningSpatial from './components/LearningSpatial';
 import LearningLinguistic from './components/LearningLinguistic';
 import LearningMusical from './components/LearningMusical';
+import SpatialDashboard from './components/SpatialDashboard';
 
 import './index.css';
 
@@ -59,6 +60,7 @@ function App() {
           <Route path="/linguistic" element={user ? <LinguisticAssessment user={user} /> : <Navigate to="/" />} />
           <Route path="/musical" element={user ? <MusicalAssessment user={user} /> : <Navigate to="/" />} />
           <Route path="/results" element={user ? <Results user={user} /> : <Navigate to="/" />} />
+          <Route path="/spatial-dashboard" element={user ? <SpatialDashboard user={user} /> : <Navigate to="/" />} />
           <Route path="/learn-spatial" element={user ? <LearningSpatial /> : <Navigate to="/" />} />
           <Route path="/learn-linguistic" element={user ? <LearningLinguistic /> : <Navigate to="/" />} />
           <Route path="/learn-musical" element={user ? <LearningMusical /> : <Navigate to="/" />} />

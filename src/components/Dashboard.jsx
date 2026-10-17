@@ -33,21 +33,44 @@ export default function Dashboard({ user, onLogout }) {
   return (
     <div className="page" id="page-dashboard">
       <h2 className="glow-text section-title" style={{ fontSize: '2.5rem', marginTop: '2rem' }}>Welcome, {user.username}!</h2>
-      <p style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--text-muted)', fontSize: '1.1rem' }}>
-        Select an intelligence module to begin your assessment.
+      
+      {/* First-time Welcome Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
+        border: '1px solid rgba(56, 189, 248, 0.4)',
+        borderRadius: '16px',
+        padding: '1.2rem 1.5rem',
+        marginBottom: '2rem',
+        maxWidth: '600px',
+        width: '100%',
+        textAlign: 'center',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#38bdf8', marginBottom: '6px' }}>
+          👋 Welcome to Multi-Intelligence Assessment!
+        </div>
+        <div style={{ color: 'var(--text-main)', fontSize: '1.02rem', lineHeight: '1.5' }}>
+          First, you should attend a test on <strong>Spatial</strong>, <strong>Linguistic</strong>, and <strong>Musical</strong> intelligence to determine your best intelligence.
+        </div>
+      </div>
+
+      <p style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--text-muted)', fontSize: '1rem' }}>
+        Select an intelligence module to begin your assessment:
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '600px' }}>
         
         <div 
-          className={`interactive-card ${completed.Spatial ? 'completed' : ''}`} 
-          style={{ cursor: completed.Spatial ? 'default' : 'pointer', opacity: completed.Spatial ? 0.7 : 1, borderColor: completed.Spatial ? 'var(--success-color)' : '', maxWidth: '100%' }}
-          onClick={() => !completed.Spatial && navigate('/spatial')}
+          className={`interactive-card ${completed.Spatial !== null ? 'completed' : ''}`} 
+          style={{ cursor: 'pointer', maxWidth: '100%', borderColor: completed.Spatial !== null ? 'var(--success-color)' : '' }}
+          onClick={() => navigate('/spatial')}
         >
           <div className="card-icon">🧠</div>
           <div style={{ flex: 1 }}>
             <div className="card-title">Spatial Intelligence</div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{completed.Spatial !== null ? `Completed: ${completed.Spatial}%` : '3 Videos, 9 Questions'}</div>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+              {completed.Spatial !== null ? `Completed: ${completed.Spatial}% (Click to Retake Test)` : '3 Videos, 9 Questions (Proctored Test)'}
+            </div>
           </div>
         </div>
 
