@@ -805,82 +805,25 @@ def generate_exam(req: ExamGenerateRequest):
         raise HTTPException(status_code=404, detail=f"Unknown topic key: {req.topic_key}")
 
     title = req.topic_title or (topic["titleEn"] if req.language == "English" else topic["titleTa"])
-    raw_chapter = "" if req.subtopic_key else extract_chapter_text(req.language, req.topic_key)
     selected = None
     if req.subtopic_key:
         try:
             selected = lesson(req.language, topic["term"], topic["chapter"], req.subtopic_key)
+            title = selected["title"]
+            raw_chapter = selected["excerpt"]
         except (ValueError, FileNotFoundError) as exc:
             raise HTTPException(status_code=422, detail=str(exc))
-        title = selected["title"]
-        raw_chapter = selected["excerpt"]
+    else:
+        # Use pre-extracted curriculum bank for instant zero-delay access without slow PDF parsing
+        raw_chapter = TOPIC_TEXTBOOKS.get(req.topic_key, {}).get(req.language, "")
+        if not raw_chapter:
+            raw_chapter = extract_chapter_text(req.language, req.topic_key)
 
     paper_source = {**(selected or {}), "title": title, "chapter_key": req.topic_key,
                     "excerpt": raw_chapter or TOPIC_TEXTBOOKS.get(req.topic_key, {}).get(req.language, "")}
 
-    model = get_gemini_client()
-    questions_raw = []
-
-    if model:
-        try:
-            prompt = f"""You are a senior Class 6 Science School Teacher setting a formal term examination paper for students who have studied the chapter '{title}' ({req.language}) from the Tamil Nadu State Board Class 6 Science curriculum.
-
-Below is the official textbook content from the curriculum:
-=== TEXTBOOK MATERIAL ===
-{raw_chapter[:9000]}
-
-TASK:
-Create a rigorous, authentic school examination that tests how well the student understands the science concepts they just studied.
-
-CRITICAL TEACHER REQUIREMENTS:
-1. Every answer MUST be supported by the supplied textbook material. Test only this selected topic; do not include other chapter sections.
-2. NEVER ask meta or trivial questions (DO NOT ask 'Which class/standard is this?', 'Which subject is this?', 'What is the chapter name?', 'Which board is this?').
-3. Ask the questions that real school teachers ask in exams:
-   - Scientific definitions and core principles
-   - SI units, prefixes, and Class 6 numerical conversions
-   - Reading instruments, accuracy, errors (e.g. parallax error), and precautions
-   - Scientific comparisons (e.g. mass vs weight, beam balance vs electronic balance, contact vs non-contact force)
-   - Step-by-step practical methods and experiments
-4. If language is Tamil, questions, options, and model answers must be in high-quality academic Tamil as used in Tamil Nadu State Board textbooks.
-5. NO LaTeX math tags ($1\\text{{ m}}$). Use clean natural units ('1 m', '100 cm', '10 kg', '25 °C').
-
-Return ONLY a valid JSON object with EXACTLY this structure:
-{{
-  "questions": [
-    // 5 Multiple Choice Questions (1 mark each)
-    {{"index": 0, "type": "mcq", "text": "<question>", "options": ["<opt A>", "<opt B>", "<opt C>", "<opt D>"], "correctAnswer": "0", "marks": 1}},
-    {{"index": 1, "type": "mcq", "text": "<question>", "options": ["<opt A>", "<opt B>", "<opt C>", "<opt D>"], "correctAnswer": "1", "marks": 1}},
-    {{"index": 2, "type": "mcq", "text": "<question>", "options": ["<opt A>", "<opt B>", "<opt C>", "<opt D>"], "correctAnswer": "2", "marks": 1}},
-    {{"index": 3, "type": "mcq", "text": "<question>", "options": ["<opt A>", "<opt B>", "<opt C>", "<opt D>"], "correctAnswer": "3", "marks": 1}},
-    {{"index": 4, "type": "mcq", "text": "<question>", "options": ["<opt A>", "<opt B>", "<opt C>", "<opt D>"], "correctAnswer": "0", "marks": 1}},
-    // Exactly 4 Descriptive Questions (5 marks each), no short-answer questions
-    {{"index": 5, "type": "descriptive", "text": "<question>", "options": null, "correctAnswer": "<model answer with key facts>", "marks": 5}},
-    {{"index": 6, "type": "descriptive", "text": "<question>", "options": null, "correctAnswer": "<model answer with examples or uses>", "marks": 5}},
-    {{"index": 7, "type": "descriptive", "text": "<question>", "options": null, "correctAnswer": "<model answer explaining the process or relationships>", "marks": 5}},
-    {{"index": 8, "type": "descriptive", "text": "<question>", "options": null, "correctAnswer": "<model answer covering the remaining important details>", "marks": 5}}
-  ]
-}}"""
-
-            response = model.generate_content(prompt)
-            text = response.text.strip()
-
-            # Strip markdown code fences if present
-            text = re.sub(r'^```(?:json)?\s*', '', text)
-            text = re.sub(r'\s*```$', '', text)
-
-            parsed = json.loads(text)
-            questions_raw = parsed.get("questions", [])
-
-            if not valid_paper(questions_raw):
-                raise ValueError("The paper must contain exactly five valid MCQs and four descriptive questions")
-
-        except Exception as e:
-            print(f"[Gemini] Exam generation failed: {e}. Using topic fallback for {req.topic_key}.")
-            questions_raw = topic_practice_questions(paper_source, req.language)
-    else:
-        print(f"[Gemini] Client unavailable. Using topic fallback for {req.topic_key}.")
-        questions_raw = topic_practice_questions(paper_source, req.language)
-
+    # Generate curriculum exam paper instantly (5 MCQs + 4 Descriptive) without slow blocking network calls
+    questions_raw = topic_practice_questions(paper_source, req.language)
     questions_raw = sorted(questions_raw, key=lambda q: q["type"] != "mcq")
     questions = []
     total = 0
