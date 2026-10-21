@@ -44,13 +44,13 @@ export default function Results({ user }) {
 
       {/* Primary dominant card */}
       <div className="main-result-card card mt-4"
-        style={{ textAlign: 'center', position: 'relative', borderTop: '5px solid var(--primary-color)' }}>
+        style={{ textAlign: 'center', position: 'relative', borderTop: '2px solid var(--primary-color)' }}>
         <h3 className="result-rank-badge"
           style={{ background: 'var(--primary-color)', color: 'white', padding: '0.5rem 1.5rem',
-            borderRadius: '20px', display: 'inline-block', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: 'bold' }}>
+            borderRadius: '10px', display: 'inline-block', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: 'bold' }}>
           PRIMARY DOMINANT
         </h3>
-        <div style={{ fontSize: '2.5rem', fontFamily: 'var(--font-display)', color: '#0f172a', marginBottom: '0.5rem', fontWeight: '800' }}>
+        <div style={{ fontSize: '2.5rem', fontFamily: 'var(--font-display)', color: '#263c34', marginBottom: '0.5rem', fontWeight: '800' }}>
           {dominant.name}
         </div>
         <div className="result-score" style={{ fontSize: '3rem', fontWeight: '900', color: 'var(--primary-color)' }}>
@@ -63,11 +63,11 @@ export default function Results({ user }) {
 
       {/* Secondary & Third */}
       <div style={{ display: 'flex', gap: '1rem', width: '100%', marginTop: '2rem' }}>
-        <div className="card text-center" style={{ flex: 1, padding: '2rem', borderTop: '4px solid #64748b' }}>
-          <h4 style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '1rem' }}>
+        <div className="card text-center" style={{ flex: 1, padding: '2rem', borderTop: '2px solid #697061' }}>
+          <h4 style={{ color: '#697061', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '1rem' }}>
             Secondary Dominant
           </h4>
-          <div style={{ fontSize: '1.8rem', fontFamily: 'var(--font-display)', color: '#1e293b', marginBottom: '0.5rem', fontWeight: '700' }}>
+          <div style={{ fontSize: '1.8rem', fontFamily: 'var(--font-display)', color: '#35443e', marginBottom: '0.5rem', fontWeight: '700' }}>
             {intelligences[1].name}
           </div>
           <div style={{ fontSize: '1.5rem', color: 'var(--primary-color)', fontWeight: 'bold' }}>
@@ -79,7 +79,7 @@ export default function Results({ user }) {
         </div>
         <div className="card text-center" style={{ flex: 1, padding: '1.5rem' }}>
           <h4 className="result-rank-badge-secondary">3rd</h4>
-          <div style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', color: '#1e293b', marginBottom: '0.2rem' }}>
+          <div style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', color: '#35443e', marginBottom: '0.2rem' }}>
             {intelligences[2].name}
           </div>
           <div style={{ fontSize: '1.2rem', color: 'var(--primary-color)' }}>{intelligences[2].score}%</div>
@@ -92,61 +92,30 @@ export default function Results({ user }) {
       {/* ── NEW: Learning Experiment CTA ─────────────────────────────────────────── */}
       <div style={{
         width: '100%', marginTop: '2.5rem',
-        background: 'linear-gradient(135deg,rgba(37,99,235,0.1) 0%,rgba(124,58,237,0.1) 100%)',
-        border: '2px solid rgba(37,99,235,0.3)', borderRadius: '22px', padding: '2rem',
+        background: '#eeefe5',
+        border: '2px solid rgba(66,95,80,0.3)', borderRadius: '10px', padding: '2rem',
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧪</div>
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', color: '#0f172a', marginBottom: '0.5rem' }}>
-          Start the Learning Experiment
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', color: '#263c34', marginBottom: '0.5rem' }}>
+          Choose a topic
         </h3>
-        <p style={{ color: '#64748b', fontSize: '0.97rem', lineHeight: '1.6', maxWidth: '600px', margin: '0 auto 1.5rem auto' }}>
-          Now that your dominant intelligence is determined (<strong>{dominant.name}</strong>), you can start the
-          multi-phase learning experiment. Pick a Class 6 Science topic, study from the textbook,
-          take a baseline test, then learn through your intelligence style and see if your score improves!
-        </p>
         <button
-          onClick={() => navigate('/topic-select')}
+          onClick={() => {
+            sessionStorage.setItem('dominantIntelligence', dominant.name);
+            navigate('/topic-select', { state: { dominantIntel: dominant.name } });
+          }}
           style={{
-            background: 'linear-gradient(135deg,#2563eb 0%,#7c3aed 100%)',
+            background: '#425f50',
             color: 'white', border: 'none', padding: '1rem 2.2rem',
             borderRadius: '14px', fontSize: '1.05rem', fontWeight: 800,
-            cursor: 'pointer', boxShadow: '0 8px 20px rgba(37,99,235,0.35)',
+            cursor: 'pointer', boxShadow: 'none',
             transition: 'all 0.2s',
           }}
           onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
           onMouseOut={e => e.currentTarget.style.transform = 'none'}
         >
-          🚀 Begin Learning Experiment →
+          Continue →
         </button>
-      </div>
-
-      {/* ── Existing learning paths (preserved) ─────────────────────────────────── */}
-      <h3 className="mt-4 section-title"
-        style={{ borderBottom: 'none', marginBottom: '1rem', marginTop: '3rem' }}>
-        Personalized Learning Paths
-      </h3>
-      <p style={{ color: '#94a3b8', fontSize: '0.88rem', marginBottom: '1rem', textAlign: 'center' }}>
-        (Existing learning materials — accessible at any time)
-      </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-        {intelligences.map((int, idx) => (
-          <div
-            key={idx}
-            className="card"
-            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '1.5rem', transition: 'all 0.3s' }}
-            onClick={() => navigate(int.path)}
-            onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--primary-color)'; e.currentTarget.style.transform = 'translateX(10px)'; }}
-            onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--card-border)'; e.currentTarget.style.transform = 'none'; }}
-          >
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary-color)', marginRight: '1.5rem', width: '40px' }}>
-              {idx === 0 ? '1st:' : idx === 1 ? '2nd:' : '3rd:'}
-            </div>
-            <div style={{ fontSize: '1.3rem', color: '#0f172a', fontWeight: 600 }}>
-              {int.name} Learning Path
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

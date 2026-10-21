@@ -91,7 +91,7 @@ app.post('/api/answers', (req, res) => {
 
 // POST /api/sessions  — create a new learning session
 app.post('/api/sessions', async (req, res) => {
-    const { userId, topic, topicKey, language, dominantIntelligence } = req.body;
+    const { userId, topic, topicKey, subtopicKey, language, dominantIntelligence } = req.body;
     if (!userId || !topic || !language || !dominantIntelligence) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -111,8 +111,8 @@ app.post('/api/sessions', async (req, res) => {
 
     try {
         const result = await dbRun(
-            `INSERT INTO learning_sessions (user_id, topic, topic_key, language, dominant_intelligence) VALUES (?, ?, ?, ?, ?)`,
-            [userId, topic, topicKey || topic, language, dominantIntelligence]
+            `INSERT INTO learning_sessions (user_id, topic, topic_key, subtopic_key, language, dominant_intelligence) VALUES (?, ?, ?, ?, ?, ?)`,
+            [userId, topic, topicKey || topic, subtopicKey || null, language, dominantIntelligence]
         );
         const session = await dbGet('SELECT * FROM learning_sessions WHERE id = ?', [result.lastID]);
         res.json(session);
@@ -296,7 +296,7 @@ app.get('/api/sessions/:sessionId/compare', async (req, res) => {
             let parsedOpts = null;
             try {
                 parsedOpts = q.options ? JSON.parse(q.options) : null;
-            } catch (e) {
+            } catch {
                 parsedOpts = null;
             }
             return {

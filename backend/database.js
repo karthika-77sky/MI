@@ -47,11 +47,19 @@ const db = new sqlite.Database(dbPath, (err) => {
             user_id INTEGER NOT NULL,
             topic TEXT NOT NULL,
             topic_key TEXT NOT NULL,
+            subtopic_key TEXT,
             language TEXT NOT NULL,
             dominant_intelligence TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )`);
+
+        // Upgrade existing local databases without changing older sessions.
+        db.all('PRAGMA table_info(learning_sessions)', (err, columns) => {
+            if (!err && !columns.some(column => column.name === 'subtopic_key')) {
+                db.run('ALTER TABLE learning_sessions ADD COLUMN subtopic_key TEXT');
+            }
+        });
 
         db.run(`CREATE TABLE IF NOT EXISTS exam_questions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -4,11 +4,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cleanMathText } from '../utils/mathCleaner';
+import useAssessmentProtocol from '../hooks/useAssessmentProtocol';
+import AssessmentProtocolNotice from './AssessmentProtocolNotice';
+import AssessmentRules from './AssessmentRules';
 
 const PYTHON_URL = 'http://localhost:8000';
 const NODE_URL   = 'http://localhost:3001';
 
-export default function Examination({ user }) {
+export default function Examination() {
   const navigate = useNavigate();
   const { phase } = useParams();   // 'baseline' | 'final'
   const isBaseline = phase === 'baseline';
@@ -24,103 +27,66 @@ export default function Examination({ user }) {
   const [submitting, setSubmitting] = useState(false);
   const [topicTitle, setTopicTitle] = useState('');
   const [totalMarks, setTotalMarks] = useState(0);
-  const [startTime]                 = useState(Date.now());
+  const [startTime, setStartTime] = useState(null);
+  const [examStarted, setExamStarted] = useState(false);
 
-  // Anti-cheat: tab switch warning for Test A
-  const [tabWarnings, setTabWarnings] = useState(0);
-  const [showWarning, setShowWarning] = useState(false);
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (!sessionId || !topicKey) { navigate('/topic-select'); return; }
-    loadQuestions();
-  }, []);
-
-  // Tab switch detection (only during active test)
-  useEffect(() => {
-    if (loading || submitting) return;
-    const handleVisibility = () => {
-      if (document.hidden && !isSubmittingRef.current) {
-        setTabWarnings(prev => {
-          const next = prev + 1;
-          setShowWarning(true);
-          if (next >= 3) { alert('⚠️ Too many tab switches. Submitting automatically.'); handleSubmit(); }
-          return next;
-        });
+    let active = true;
+    const validBaseline = paper => Array.isArray(paper) && paper.length === 9
+      && paper.filter(q => q.type === 'mcq').length === 5
+      && paper.filter(q => q.type === 'descriptive').length === 4;
+    const load = async () => {
+      try {
+        const sessionRes = await fetch(`${NODE_URL}/api/sessions/by-id/${sessionId}`);
+        if (!sessionRes.ok) throw new Error('Could not load your learning session');
+        const session = await sessionRes.json();
+        const savedRes = await fetch(`${NODE_URL}/api/sessions/${sessionId}/questions`);
+        if (!savedRes.ok) throw new Error('Could not retrieve examination questions');
+        let paper = await savedRes.json();
+        if (isBaseline && paper.length && !validBaseline(paper)) {
+          throw new Error('This session uses an earlier exam format. Choose your topic again to start Test A with 5 MCQs and 4 descriptive questions.');
+        }
+        if (isBaseline && !paper.length) {
+          if (!active) return;
+          const generatedRes = await fetch(`${PYTHON_URL}/api/exam/generate`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic_key: session.topic_key, subtopic_key: session.subtopic_key || null,
+              language: session.language, topic_title: session.topic }),
+          });
+          const generated = await generatedRes.json();
+          if (!generatedRes.ok) throw new Error(generated.detail || 'Question generation failed');
+          if (!validBaseline(generated.questions)) throw new Error('The examination must contain 5 MCQs and 4 descriptive questions. Please try again.');
+          if (!active) return;
+          const saveRes = await fetch(`${NODE_URL}/api/sessions/${sessionId}/questions`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questions: generated.questions }),
+          });
+          if (!saveRes.ok && saveRes.status !== 409) throw new Error('Could not save the examination. Please try again.');
+          // Render the saved paper, including on a concurrent/repeated load.
+          // Test B and the submitted answer IDs must refer to these questions.
+          const confirmed = await fetch(`${NODE_URL}/api/sessions/${sessionId}/questions`);
+          if (!confirmed.ok) throw new Error('Could not confirm saved questions');
+          paper = await confirmed.json();
+          if (!validBaseline(paper)) throw new Error('The saved paper uses an earlier format. Please choose your topic again.');
+        }
+        if (!paper.length) throw new Error('Please complete Test A first.');
+        if (active) {
+          setQuestions(paper);
+          setTotalMarks(paper.reduce((sum, q) => sum + q.marks, 0));
+          setTopicTitle(session.topic);
+        }
+      } catch (err) {
+        if (active) setError(err.message);
+      } finally {
+        if (active) setLoading(false);
       }
     };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [loading, submitting]);
-
-  const loadQuestions = async () => {
-    try {
-      if (isBaseline) {
-        // Generate questions via Gemini (or fallback)
-        // First get topic title from topics list
-        const topicsRes = await fetch(`${PYTHON_URL}/api/topics`);
-        const topicsData = await topicsRes.json();
-        const topic = (topicsData.topics || []).find(t => t.key === topicKey);
-        const title = topic ? (language === 'English' ? topic.titleEn : topic.titleTa) : topicKey;
-        setTopicTitle(title);
-
-        const genRes = await fetch(`${PYTHON_URL}/api/exam/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic_key: topicKey, language, topic_title: title }),
-        });
-        if (!genRes.ok) throw new Error(`Question generation failed (${genRes.status})`);
-        const genData = await genRes.json();
-
-        setQuestions(genData.questions);
-        setTotalMarks(genData.total_marks);
-        setTopicTitle(genData.topic_title);
-
-        // Save questions to the backend immediately (so Test B can reuse them)
-        const questionsPayload = genData.questions.map(q => ({
-          type: q.type, text: q.text, options: q.options,
-          correctAnswer: q.correctAnswer, marks: q.marks,
-        }));
-        const saveRes = await fetch(`${NODE_URL}/api/sessions/${sessionId}/questions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ questions: questionsPayload }),
-        });
-        if (!saveRes.ok) {
-          const errData = await saveRes.json().catch(() => ({}));
-          // 409 = already saved; that's fine (re-entry into baseline page)
-          if (saveRes.status !== 409) {
-            console.warn('Question save warning:', errData.error);
-          }
-        }
-      } else {
-        // Test B: load EXACTLY the saved questions — no regeneration
-        const savedRes = await fetch(`${NODE_URL}/api/sessions/${sessionId}/questions`);
-        if (!savedRes.ok) throw new Error('Could not retrieve saved questions from server');
-        const savedQuestions = await savedRes.json();
-        if (!savedQuestions.length) throw new Error('No saved questions found. Please complete Test A first.');
-
-        setQuestions(savedQuestions.map(q => ({
-          index: q.index,
-          type: q.type,
-          text: q.text,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
-          marks: q.marks,
-        })));
-        setTotalMarks(savedQuestions.reduce((s, q) => s + q.marks, 0));
-
-        // Get topic title from session
-        const sessRes = await fetch(`${NODE_URL}/api/sessions/by-id/${sessionId}`);
-        const sess = await sessRes.json();
-        setTopicTitle(sess.topic || '');
-      }
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    load();
+    return () => { active = false; };
+  }, [isBaseline, navigate, sessionId, topicKey]);
 
   const handleAnswer = (qIndex, value) => {
     setAnswers(prev => ({ ...prev, [String(qIndex)]: value }));
@@ -220,19 +186,19 @@ export default function Examination({ user }) {
     }
   };
 
+  const protocol = useAssessmentProtocol({ active: examStarted && !loading && !submitting && questions.length > 0,
+    onForceSubmit: handleSubmit, durationSeconds: 1800 });
+
   if (loading) {
     return (
       <div className="page" style={{ justifyContent: 'center', paddingTop: '4rem' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
-            {isBaseline ? '⚙️' : '📋'}
-          </div>
           <h2 className="glow-text">
             {isBaseline ? 'Generating Examination Questions...' : 'Loading Examination...'}
           </h2>
-          <p style={{ color: '#64748b', maxWidth: '500px', margin: '0 auto' }}>
+          <p style={{ color: '#697061', maxWidth: '500px', margin: '0 auto' }}>
             {isBaseline
-              ? 'AI is creating a structured examination based on the textbook topic. This may take a moment.'
+              ? 'Preparing your questions…'
               : 'Retrieving your original Test A questions to ensure a fair comparison.'}
           </p>
         </div>
@@ -243,14 +209,27 @@ export default function Examination({ user }) {
   if (error) {
     return (
       <div className="page" style={{ paddingTop: '2rem' }}>
-        <div className="card" style={{ textAlign: 'center', color: '#ef4444' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⚠️</div>
+        <div className="card" style={{ textAlign: 'center', color: '#9b514b' }}>
           <h3>Examination Load Error</h3>
-          <p style={{ color: '#64748b' }}>{error}</p>
+          <p style={{ color: '#697061' }}>{error}</p>
           <button className="btn back-btn" style={{ marginTop: '1.5rem' }}
-            onClick={() => navigate(isBaseline ? '/textbook-learn' : '/spatial-learning')}>
+            onClick={() => navigate(isBaseline ? '/topic-select' : '/spatial-learning')}>
             ← Go Back
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!examStarted) {
+    return (
+      <div className="page" style={{ paddingTop: '2rem', maxWidth: 760 }}>
+        <div className="card" style={{ padding: '2rem' }}>
+          <h1>{isBaseline ? 'Test A — Baseline Examination' : 'Test B — Final Examination'}</h1>
+          <h2 style={{ marginTop: 12 }}>{topicTitle}</h2>
+          <p style={{ marginTop: 12 }}>{questions.length} questions · {totalMarks} marks · 30 minutes</p>
+          <AssessmentRules />
+          <button className="btn" onClick={() => { setStartTime(Date.now()); setExamStarted(true); }}>Start {isBaseline ? 'Test A' : 'Test B'}</button>
         </div>
       </div>
     );
@@ -264,95 +243,54 @@ export default function Examination({ user }) {
   return (
     <div className="page" style={{ paddingTop: '1.5rem', maxWidth: '860px' }}>
 
-      {/* Tab switch warning modal */}
-      {showWarning && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div style={{
-            background: 'white', borderRadius: '20px', padding: '2rem',
-            maxWidth: '420px', width: '90%', textAlign: 'center', border: '3px solid #ef4444'
-          }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🚨</div>
-            <h3 style={{ color: '#ef4444' }}>Tab Switch Detected!</h3>
-            <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-              Warning {tabWarnings} of 3. Switching tabs during the examination is not permitted.
-              Auto-submit will occur on the third warning.
-            </p>
-            <button
-              onClick={() => setShowWarning(false)}
-              style={{ marginTop: '1rem', background: '#ef4444', color: 'white', border: 'none',
-                padding: '10px 24px', borderRadius: '10px', fontWeight: 700, cursor: 'pointer' }}>
-              Resume Examination
-            </button>
-          </div>
-        </div>
-      )}
+      <AssessmentProtocolNotice protocol={protocol} submitting={submitting} />
+      <div inert={Boolean(protocol.warning || protocol.endReason)} style={{ display: 'contents' }}>
 
       {/* Header */}
       <div style={{
         width: '100%', background: isBaseline
-          ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
-          : 'linear-gradient(135deg, #1a0530 0%, #2d0a4e 100%)',
-        borderRadius: '20px', padding: '1.5rem',
-        border: isBaseline ? '2px solid #38bdf8' : '2px solid #a855f7',
-        marginBottom: '2rem', color: 'white',
+          ? '#e9ede0'
+          : '#e9ede0',
+        borderRadius: '10px', padding: '1.5rem',
+        border: isBaseline ? '2px solid #607b6b' : '2px solid #81755f',
+        marginBottom: '2rem', color: '#263c34',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem'
       }}>
         <div>
           <div style={{ fontSize: '0.8rem', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase',
-            color: isBaseline ? '#38bdf8' : '#a855f7', marginBottom: '4px' }}>
-            {isBaseline ? '📝 Test A — Baseline Examination' : '🎯 Test B — Final Examination'}
+            color: isBaseline ? '#607b6b' : '#81755f', marginBottom: '4px' }}>
+            {isBaseline ? ' Test A — Baseline Examination' : ' Test B — Final Examination'}
           </div>
-          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'white' }}>{topicTitle}</div>
-          <div style={{
-            display: 'inline-block', marginTop: '6px', padding: '3px 12px',
-            background: isBaseline ? 'rgba(56,189,248,0.15)' : 'rgba(168,85,247,0.15)',
-            border: isBaseline ? '1px solid #38bdf8' : '1px solid #a855f7',
-            borderRadius: '20px', fontSize: '0.78rem', fontWeight: 700,
-            color: isBaseline ? '#38bdf8' : '#a855f7',
-          }}>
-            📚 Topic: {topicTitle}
-          </div>
-          <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '6px' }}>
+          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#263c34' }}>{topicTitle}</div>
+          <div style={{ fontSize: '0.85rem', color: '#697061', marginTop: '6px' }}>
             Language: {language} · {questions.length} questions · {totalMarks} total marks
+            <br />Time remaining: {Math.floor(protocol.timeLeft / 60)}:{String(protocol.timeLeft % 60).padStart(2, '0')} · Departures: {protocol.warningCount}/3
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Answered</div>
+          <div style={{ fontSize: '0.82rem', color: '#697061' }}>Answered</div>
           <div style={{ fontSize: '1.8rem', fontWeight: 900,
-            color: answeredCount === questions.length ? '#34d399' : '#f59e0b' }}>
+            color: answeredCount === questions.length ? '#7d9875' : '#857455' }}>
             {answeredCount}/{questions.length}
           </div>
         </div>
       </div>
 
-      {!isBaseline && (
-        <div style={{
-          background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '12px',
-          padding: '0.8rem 1.2rem', marginBottom: '1.5rem', width: '100%',
-          color: '#166534', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'
-        }}>
-          ℹ️ <strong>Test B uses the exact same questions as Test A</strong> — same wording, same options, same marks.
-        </div>
-      )}
-
       {/* Instructions */}
       <div style={{
-        background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: '12px',
-        padding: '1rem 1.3rem', marginBottom: '2rem', width: '100%', fontSize: '0.9rem', color: '#78350f'
+        background: '#f1eee1', border: '1px solid #c6b993', borderRadius: '12px',
+        padding: '1rem 1.3rem', marginBottom: '2rem', width: '100%', fontSize: '0.9rem', color: '#736247'
       }}>
-        <strong>📌 Instructions:</strong> Answer all questions carefully.
-        MCQs are worth 1 mark each. Short-answer questions are worth 2 marks each.
+        <strong> Instructions:</strong> Answer all questions carefully.
+        MCQs are worth 1 mark each. {shortQuestions.length > 0 && 'Short-answer questions are worth 2 marks each. '}
         Descriptive questions are worth 5 marks each. Total marks: <strong>{totalMarks}</strong>.
       </div>
 
       {/* MCQ Section */}
       {mcqQuestions.length > 0 && (
         <div style={{ width: '100%', marginBottom: '2rem' }}>
-          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', color: '#0f172a',
-            borderBottom: '2px solid #2563eb', paddingBottom: '8px', marginBottom: '1.2rem' }}>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', color: '#263c34',
+            borderBottom: '2px solid #425f50', paddingBottom: '8px', marginBottom: '1.2rem' }}>
             Section A — Multiple Choice Questions (1 mark each)
           </h3>
           {mcqQuestions.map((q, sectionIdx) => {
@@ -390,15 +328,15 @@ export default function Examination({ user }) {
       {/* Short Answer Section */}
       {shortQuestions.length > 0 && (
         <div style={{ width: '100%', marginBottom: '2rem' }}>
-          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', color: '#0f172a',
-            borderBottom: '2px solid #059669', paddingBottom: '8px', marginBottom: '1.2rem' }}>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', color: '#263c34',
+            borderBottom: '2px solid #52715b', paddingBottom: '8px', marginBottom: '1.2rem' }}>
             Section B — Short Answer Questions (2 marks each)
           </h3>
           {shortQuestions.map((q, sectionIdx) => {
             const globalIdx = questions.indexOf(q);
             return (
               <div key={globalIdx} className="question-card" style={{ marginBottom: '1.2rem' }}>
-                <div className="weight-badge" style={{ background: '#f0fdf4', color: '#059669', borderColor: '#86efac' }}>
+                <div className="weight-badge" style={{ background: '#eef1e7', color: '#52715b', borderColor: '#bdcbb1' }}>
                   2 marks
                 </div>
                 <div className="question-text" style={{ fontSize: '1.05rem', paddingRight: '80px' }}>
@@ -411,13 +349,13 @@ export default function Examination({ user }) {
                   rows={4}
                   style={{
                     width: '100%', padding: '0.9rem', borderRadius: '10px',
-                    border: '1.5px solid #e2e8f0', fontFamily: 'var(--font-body)',
-                    fontSize: '1rem', outline: 'none', resize: 'vertical', color: '#1e293b',
-                    background: '#f8fafc', lineHeight: '1.6',
+                    border: '1.5px solid #dddfd4',
+                    fontSize: '1rem', outline: 'none', resize: 'vertical', color: '#35443e',
+                    background: '#f5f4ee', lineHeight: '1.6',
                     fontFamily: language === 'Tamil' ? "'Noto Sans Tamil', sans-serif" : 'inherit'
                   }}
-                  onFocus={e => e.target.style.borderColor = '#059669'}
-                  onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                  onFocus={e => e.target.style.borderColor = '#52715b'}
+                  onBlur={e => e.target.style.borderColor = '#dddfd4'}
                 />
               </div>
             );
@@ -428,15 +366,15 @@ export default function Examination({ user }) {
       {/* Descriptive Section */}
       {descQuestions.length > 0 && (
         <div style={{ width: '100%', marginBottom: '2rem' }}>
-          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', color: '#0f172a',
-            borderBottom: '2px solid #7c3aed', paddingBottom: '8px', marginBottom: '1.2rem' }}>
-            Section C — Descriptive Questions (5 marks each)
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', color: '#263c34',
+            borderBottom: '2px solid #787565', paddingBottom: '8px', marginBottom: '1.2rem' }}>
+            Section {shortQuestions.length ? 'C' : 'B'} — Descriptive Questions (5 marks each)
           </h3>
           {descQuestions.map((q, sectionIdx) => {
             const globalIdx = questions.indexOf(q);
             return (
               <div key={globalIdx} className="question-card" style={{ marginBottom: '1.2rem' }}>
-                <div className="weight-badge" style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#c4b5fd' }}>
+                <div className="weight-badge" style={{ background: '#f0eee5', color: '#787565', borderColor: '#d3ceb9' }}>
                   5 marks
                 </div>
                 <div className="question-text" style={{ fontSize: '1.05rem', paddingRight: '80px' }}>
@@ -449,13 +387,13 @@ export default function Examination({ user }) {
                   rows={8}
                   style={{
                     width: '100%', padding: '0.9rem', borderRadius: '10px',
-                    border: '1.5px solid #e2e8f0', fontFamily: 'var(--font-body)',
-                    fontSize: '1rem', outline: 'none', resize: 'vertical', color: '#1e293b',
-                    background: '#f8fafc', lineHeight: '1.7',
+                    border: '1.5px solid #dddfd4',
+                    fontSize: '1rem', outline: 'none', resize: 'vertical', color: '#35443e',
+                    background: '#f5f4ee', lineHeight: '1.7',
                     fontFamily: language === 'Tamil' ? "'Noto Sans Tamil', sans-serif" : 'inherit'
                   }}
-                  onFocus={e => e.target.style.borderColor = '#7c3aed'}
-                  onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                  onFocus={e => e.target.style.borderColor = '#787565'}
+                  onBlur={e => e.target.style.borderColor = '#dddfd4'}
                 />
               </div>
             );
@@ -467,10 +405,10 @@ export default function Examination({ user }) {
       <div style={{ width: '100%', marginBottom: '3rem' }}>
         {!allAnswered() && (
           <div style={{
-            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px',
-            padding: '0.8rem 1.2rem', marginBottom: '1rem', color: '#b91c1c', fontSize: '0.9rem'
+            background: '#f5eeea', border: '1px solid #dbc3b7', borderRadius: '10px',
+            padding: '0.8rem 1.2rem', marginBottom: '1rem', color: '#8c4740', fontSize: '0.9rem'
           }}>
-            ⚠️ Please answer all {questions.length} questions before submitting.
+             Please answer all {questions.length} questions before submitting.
             ({answeredCount}/{questions.length} answered)
           </div>
         )}
@@ -480,18 +418,19 @@ export default function Examination({ user }) {
           className="btn primary-btn"
           style={{
             width: '100%', fontSize: '1.1rem',
-            background: submitting ? '#94a3b8'
-              : isBaseline ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
-              : 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+            background: submitting ? '#697061'
+              : isBaseline ? '#425f50'
+              : '#425f50',
             opacity: (!allAnswered() && !submitting) ? 0.5 : 1,
             cursor: (!allAnswered() && !submitting) ? 'not-allowed' : 'pointer',
           }}
         >
           {submitting
-            ? '⏳ Evaluating answers and saving results...'
+            ? ' Evaluating answers and saving results...'
             : `Submit ${isBaseline ? 'Test A' : 'Test B'} — ${totalMarks} Total Marks`
           }
         </button>
+      </div>
       </div>
     </div>
   );

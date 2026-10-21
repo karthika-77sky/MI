@@ -1,29 +1,42 @@
 // src/components/TopicSelect.jsx
 // Step after Results: student selects a Class 6 Science topic and preferred language.
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-const TERM_COLORS = { 1: '#2563eb', 2: '#059669', 3: '#7c3aed' };
+const TERM_COLORS = { 1: '#425f50', 2: '#52715b', 3: '#787565' };
 const TERM_LABELS = { 1: 'Term 1', 2: 'Term 2', 3: 'Term 3' };
 
 export default function TopicSelect({ user }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [topics, setTopics]             = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [selectedTopic, setSelectedTopic] = useState(null);
+  const [subtopics, setSubtopics] = useState([]);
+  const [selectedSubtopic, setSelectedSubtopic] = useState(null);
+  const [loadingSubtopics, setLoadingSubtopics] = useState(false);
+  const [sectionError, setSectionError] = useState(null);
+  const topicSectionRef = useRef(null);
+  const chapterListRef = useRef(null);
   const [language, setLanguage]         = useState('English');
-  const [dominantIntel, setDominantIntel] = useState(null);
+  const [dominantIntel, setDominantIntel] = useState(
+    location.state?.dominantIntel ||
+    sessionStorage.getItem('dominantIntelligence') ||
+    'Spatial'
+  );
   const [creating, setCreating]         = useState(false);
 
   // Fetch topics and user's dominant intelligence
   useEffect(() => {
     const fetchAll = async () => {
       try {
+        const userId = user?.id || 1;
         const [topicsRes, assessRes] = await Promise.all([
           fetch('http://localhost:8000/api/topics'),
-          fetch(`http://localhost:3001/api/assessments/${user.id}`, { cache: 'no-store' }),
+          fetch(`http://localhost:3001/api/assessments/${userId}`, { cache: 'no-store' }),
         ]);
+        if (!topicsRes.ok || !assessRes.ok) throw new Error('Could not load learning choices');
         const topicsData = await topicsRes.json();
         const assessData = await assessRes.json();
 
@@ -32,19 +45,62 @@ export default function TopicSelect({ user }) {
         // Calculate dominant intelligence
         if (Array.isArray(assessData) && assessData.length) {
           const sorted = [...assessData].sort((a, b) => b.score - a.score);
-          setDominantIntel(sorted[0].type);
+          if (sorted[0]?.type) {
+            setDominantIntel(sorted[0].type);
+            sessionStorage.setItem('dominantIntelligence', sorted[0].type);
+          }
         }
-      } catch (e) {
+      } catch {
         setError('Failed to load topics. Is the backend running?');
       } finally {
         setLoading(false);
       }
     };
     fetchAll();
-  }, [user.id]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!selectedTopic) return;
+    topicSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const controller = new AbortController();
+    fetch(`http://localhost:8000/api/chapters/${selectedTopic.key}/topics?language=${language}`, { signal: controller.signal })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Could not load chapter topics');
+        return data;
+      })
+      .then(data => { setSubtopics(data.topics); setLoadingSubtopics(false); })
+      .catch(err => {
+        if (err.name !== 'AbortError') { setSectionError(err.message); setLoadingSubtopics(false); }
+      });
+    return () => controller.abort();
+  }, [selectedTopic, language]);
+
+  useEffect(() => {
+    if (subtopics.length) topicSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [subtopics]);
+
+  const chooseChapter = chapter => {
+    if (selectedTopic?.key === chapter.key) return;
+    setSelectedTopic(chapter);
+    setSelectedSubtopic(null);
+    setSubtopics([]);
+    setSectionError(null);
+    setLoadingSubtopics(true);
+  };
+
+  const chooseLanguage = lang => {
+    if (language === lang) return;
+    setLanguage(lang);
+    setSelectedSubtopic(null);
+    setSubtopics([]);
+    setSectionError(null);
+    setLoadingSubtopics(Boolean(selectedTopic));
+  };
 
   const handleStart = async () => {
-    if (!selectedTopic || !dominantIntel) return;
+    if (!selectedTopic || !selectedSubtopic) return;
+    const activeIntel = dominantIntel || sessionStorage.getItem('dominantIntelligence') || 'Spatial';
     setCreating(true);
 
     try {
@@ -52,11 +108,12 @@ export default function TopicSelect({ user }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
-          topic: language === 'English' ? selectedTopic.titleEn : selectedTopic.titleTa,
+          userId: user?.id || 1,
+          topic: selectedSubtopic.title,
           topicKey: selectedTopic.key,
+          subtopicKey: selectedSubtopic.key,
           language,
-          dominantIntelligence: dominantIntel,
+          dominantIntelligence: activeIntel,
         }),
       });
 
@@ -73,12 +130,15 @@ export default function TopicSelect({ user }) {
       // Store session ID in sessionStorage so it survives page navigation
       sessionStorage.setItem('currentSessionId', String(session.id));
       sessionStorage.setItem('currentTopicKey', selectedTopic.key);
-      sessionStorage.setItem('currentTopicTitle', language === 'English' ? selectedTopic.titleEn : selectedTopic.titleTa);
+      sessionStorage.setItem('currentSubtopicKey', selectedSubtopic.key);
+      sessionStorage.setItem('currentChapterTitle', language === 'English' ? selectedTopic.titleEn : selectedTopic.titleTa);
+      sessionStorage.setItem('currentTopicTitle', selectedSubtopic.title);
       sessionStorage.setItem('currentLanguage', language);
+      sessionStorage.setItem('dominantIntelligence', activeIntel);
 
       navigate('/textbook-learn');
     } catch (e) {
-      alert(e.message);
+      alert(e.message || 'Failed to start session. Please try again.');
       setCreating(false);
     }
   };
@@ -87,7 +147,6 @@ export default function TopicSelect({ user }) {
     return (
       <div className="page">
         <div style={{ textAlign: 'center', paddingTop: '4rem' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📚</div>
           <h2 className="glow-text">Loading Topics...</h2>
         </div>
       </div>
@@ -97,8 +156,8 @@ export default function TopicSelect({ user }) {
   if (error) {
     return (
       <div className="page">
-        <div className="card" style={{ textAlign: 'center', color: '#ef4444' }}>
-          <p>⚠️ {error}</p>
+        <div className="card" style={{ textAlign: 'center', color: '#9b514b' }}>
+          <p> {error}</p>
           <button className="btn back-btn" onClick={() => navigate('/results')}>← Back to Results</button>
         </div>
       </div>
@@ -112,44 +171,37 @@ export default function TopicSelect({ user }) {
     return acc;
   }, {});
 
-  const topicTitle = selectedTopic
-    ? (language === 'English' ? selectedTopic.titleEn : selectedTopic.titleTa)
-    : null;
+  const topicTitle = selectedSubtopic?.title;
 
   return (
-    <div className="page" style={{ paddingTop: '2rem', maxWidth: '860px' }}>
+    <div className="page topic-page" style={{ paddingTop: '2rem', maxWidth: '860px' }}>
       <button className="btn back-btn" onClick={() => navigate('/results')}>← Back to Results</button>
 
       <h2 className="glow-text section-title" style={{ fontSize: '2.2rem' }}>
-        🎯 Choose Your Learning Topic
+         Choose a Chapter & Topic
       </h2>
 
       {/* Dominant Intelligence Banner */}
       {dominantIntel && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(37,99,235,0.12) 0%, rgba(139,92,246,0.12) 100%)',
-          border: '1px solid rgba(37,99,235,0.35)',
+        <div className="topic-notice" style={{
+          background: '#eeefe5',
+          border: '1px solid rgba(66,95,80,0.35)',
           borderRadius: '16px', padding: '1rem 1.5rem',
           marginBottom: '2rem', width: '100%', textAlign: 'center'
         }}>
-          <div style={{ fontSize: '1.05rem', color: '#2563eb', fontWeight: 700 }}>
-            🧠 Your Dominant Intelligence: <span style={{ color: '#7c3aed' }}>{dominantIntel}</span>
-          </div>
-          <div style={{ fontSize: '0.92rem', color: '#64748b', marginTop: '4px' }}>
-            After learning from the textbook and completing Test A, you'll receive
-            content tailored specifically to your <strong>{dominantIntel}</strong> intelligence style.
+          <div style={{ fontSize: '1.05rem', color: '#425f50', fontWeight: 700 }}>
+             Your Dominant Intelligence: <span style={{ color: '#787565' }}>{dominantIntel}</span>
           </div>
         </div>
       )}
 
       {/* Instruction banner */}
-      <div style={{
-        background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: '14px',
+      <div className="topic-notice" style={{
+        background: '#f1eee1', border: '1px solid #c6b993', borderRadius: '14px',
         padding: '1rem 1.4rem', marginBottom: '2rem', width: '100%'
       }}>
-        <div style={{ fontWeight: 700, color: '#92400e', marginBottom: '4px' }}>📌 Important Instructions</div>
-        <ul style={{ margin: 0, paddingLeft: '1.4rem', color: '#78350f', fontSize: '0.93rem', lineHeight: '1.7' }}>
-          <li>Please select a topic that you have <strong>not studied before</strong>.</li>
+        <div style={{ fontWeight: 700, color: '#7a694c', marginBottom: '4px' }}> Important Instructions</div>
+        <ul style={{ margin: 0, paddingLeft: '1.4rem', color: '#736247', fontSize: '0.93rem', lineHeight: '1.7' }}>
           <li>You will first read the textbook content, then take <strong>Test A</strong>.</li>
           <li>After Test A, you'll learn through your dominant intelligence, then take <strong>Test B</strong>.</li>
           <li>The same topic is used throughout the entire experiment.</li>
@@ -158,56 +210,60 @@ export default function TopicSelect({ user }) {
 
       {/* Language Selection */}
       <div style={{ width: '100%', marginBottom: '2rem' }}>
-        <h3 style={{ fontSize: '1.1rem', color: '#0f172a', marginBottom: '0.8rem', fontFamily: 'var(--font-display)' }}>
-          🌐 Select Your Preferred Language
+        <h3 style={{ fontSize: '1.1rem', color: '#263c34', marginBottom: '0.8rem', fontFamily: 'var(--font-display)' }}>
+           Select Your Preferred Language
         </h3>
         <div style={{ display: 'flex', gap: '1rem' }}>
           {['English', 'Tamil'].map(lang => (
             <button
               key={lang}
-              onClick={() => setLanguage(lang)}
+              aria-pressed={language === lang}
+              onClick={() => chooseLanguage(lang)}
               style={{
                 flex: 1, padding: '0.9rem', borderRadius: '12px', fontWeight: 700,
                 fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s',
-                border: language === lang ? '2px solid #2563eb' : '2px solid #e2e8f0',
-                background: language === lang ? '#eff6ff' : 'white',
-                color: language === lang ? '#2563eb' : '#64748b',
-                boxShadow: language === lang ? '0 0 0 4px rgba(37,99,235,0.15)' : 'none',
+                border: language === lang ? '2px solid #425f50' : '2px solid #dddfd4',
+                background: language === lang ? '#eef1e8' : 'white',
+                color: language === lang ? '#425f50' : '#697061',
+                boxShadow: language === lang ? '0 0 0 4px rgba(66,95,80,0.15)' : 'none',
               }}
             >
-              {lang === 'English' ? '🌐 English' : '🇮🇳 Tamil'}
+              {lang === 'English' ? ' English' : ' Tamil'}
             </button>
           ))}
         </div>
       </div>
 
       {/* Topic Cards by Term */}
-      <div style={{ width: '100%' }}>
-        <h3 style={{ fontSize: '1.1rem', color: '#0f172a', marginBottom: '1.2rem', fontFamily: 'var(--font-display)' }}>
-          📖 Class 6 Science Topics
+      <div ref={chapterListRef} style={{ width: '100%', scrollMarginTop: 20 }}>
+        <h3 style={{ fontSize: '1.1rem', color: '#263c34', marginBottom: '1.2rem', fontFamily: 'var(--font-display)' }}>
+           1. Select a Class 6 Science Chapter
         </h3>
-        {[1, 2, 3].map(term => (
-          <div key={term} style={{ marginBottom: '1.5rem' }}>
+        <div className="chapter-grid">{[1, 2, 3].map(term => (
+          <div key={term} className="chapter-card-list">
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
               background: `${TERM_COLORS[term]}18`, border: `1px solid ${TERM_COLORS[term]}40`,
-              borderRadius: '20px', padding: '4px 14px', marginBottom: '0.8rem',
+              borderRadius: '10px', padding: '4px 14px', marginBottom: '0.8rem',
               color: TERM_COLORS[term], fontWeight: 700, fontSize: '0.88rem'
             }}>
-              📅 {TERM_LABELS[term]}
+               {TERM_LABELS[term]}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {(grouped[term] || []).map(topic => {
                 const title = language === 'English' ? topic.titleEn : topic.titleTa;
                 const isSelected = selectedTopic?.key === topic.key;
                 return (
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={isSelected}
                     key={topic.key}
-                    onClick={() => setSelectedTopic(topic)}
+                    onClick={() => chooseChapter(topic)}
                     style={{
                       padding: '1rem 1.3rem', borderRadius: '14px', cursor: 'pointer',
                       transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '1rem',
-                      border: isSelected ? `2px solid ${TERM_COLORS[term]}` : '2px solid #e2e8f0',
+                      width: '100%', textAlign: 'left', fontFamily: 'inherit',
+                      border: isSelected ? `2px solid ${TERM_COLORS[term]}` : '2px solid #dddfd4',
                       background: isSelected ? `${TERM_COLORS[term]}10` : 'white',
                       boxShadow: isSelected ? `0 0 0 3px ${TERM_COLORS[term]}25` : '0 1px 3px rgba(0,0,0,0.05)',
                     }}
@@ -222,47 +278,73 @@ export default function TopicSelect({ user }) {
                       {topic.chapter}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '1rem' }}>{title}</div>
-                      <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
+                      <div style={{ fontWeight: 600, color: '#263c34', fontSize: '1rem' }}>{title}</div>
+                      <div style={{ fontSize: '0.82rem', color: '#697061', marginTop: '2px' }}>
                         Chapter {topic.chapter}
                       </div>
                     </div>
                     {isSelected && (
                       <div style={{ color: TERM_COLORS[term], fontSize: '1.3rem' }}>✓</div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
-        ))}
+        ))}</div>
       </div>
+
+      {selectedTopic && (
+        <section ref={topicSectionRef} aria-labelledby="chapter-topics-title" style={{ width: '100%', marginTop: '1.5rem', padding: '1.5rem', background: '#f5f4ee', border: '1px solid #c6cdbd', borderRadius: 16, scrollMarginTop: 20 }}>
+          <h3 id="chapter-topics-title" style={{ color: '#263c34', marginBottom: 8 }}>
+            2. Choose a topic in {language === 'English' ? selectedTopic.titleEn : selectedTopic.titleTa}
+          </h3>
+          <p style={{ color: '#697061', marginBottom: 16 }}>Select one textbook topic to study and practise.</p>
+          <button type="button" className="btn back-btn" onClick={() => chapterListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Choose another chapter ↑</button>
+          {loadingSubtopics && <p role="status">Reading chapter topics from your textbook…</p>}
+          {sectionError && <p role="alert" style={{ color: '#8c4740' }}>{sectionError}</p>}
+          {!loadingSubtopics && !sectionError && subtopics.length === 0 && <p>No readable topics were found in this chapter. Please choose another chapter.</p>}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12 }}>
+            {subtopics.map(section => (
+              <button type="button" key={section.key} aria-pressed={selectedSubtopic?.key === section.key}
+                onClick={() => setSelectedSubtopic(section)}
+                style={{ padding: 16, textAlign: 'left', font: 'inherit', cursor: 'pointer', borderRadius: 12,
+                  border: selectedSubtopic?.key === section.key ? '2px solid #425f50' : '2px solid #dddfd4',
+                  background: selectedSubtopic?.key === section.key ? '#eef1e8' : '#fff', color: '#263c34' }}>
+                <strong>{section.key} · {section.title}</strong>
+                <span style={{ display: 'block', color: '#697061', fontSize: '.85rem', marginTop: 6 }}>Textbook PDF pages {section.page_start}–{section.page_end}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Start Button */}
       <div style={{ width: '100%', marginTop: '1.5rem', paddingBottom: '3rem' }}>
-        {selectedTopic ? (
+        {selectedSubtopic ? (
           <button
+            className="btn primary-btn"
             onClick={handleStart}
             disabled={creating}
             style={{
               width: '100%', padding: '1.1rem', borderRadius: '14px', border: 'none',
-              background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+              background: '#425f50',
               color: 'white', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer',
-              boxShadow: '0 8px 20px rgba(37,99,235,0.35)', transition: 'all 0.2s',
+              boxShadow: 'none', transition: 'all 0.2s',
               opacity: creating ? 0.7 : 1,
             }}
           >
             {creating
-              ? '⏳ Setting up session...'
-              : `📚 Start Learning "${topicTitle}" in ${language} →`
+              ? ' Setting up session...'
+              : ` Start Learning "${topicTitle}" in ${language} →`
             }
           </button>
         ) : (
           <div style={{
-            textAlign: 'center', padding: '1rem', color: '#94a3b8',
-            border: '2px dashed #e2e8f0', borderRadius: '14px', fontSize: '0.95rem'
+            textAlign: 'center', padding: '1rem', color: '#697061',
+            border: '2px dashed #dddfd4', borderRadius: '14px', fontSize: '0.95rem'
           }}>
-            ☝️ Please select a topic above to continue
+             {selectedTopic ? 'Choose a topic within your chapter to continue' : 'Select a chapter, then choose a topic to continue'}
           </div>
         )}
       </div>
