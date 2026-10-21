@@ -703,25 +703,10 @@ def get_textbook_content(req: TextbookRequest):
         )
 
     title = topic["titleEn"] if lang == "English" else topic["titleTa"]
-    raw_content = extract_chapter_text(lang, req.topic_key)
     chapter_images = extract_chapter_images(lang, req.topic_key)
-
     brief_list = TOPIC_BRIEFS.get(req.topic_key, {}).get(lang, [])
 
-    if raw_content and len(raw_content) > 100:
-        formatted_content = format_textbook_with_gemini(raw_content, title, lang)
-        return TextbookResponse(
-            topic_key=req.topic_key,
-            title=title,
-            language=lang,
-            content=formatted_content,
-            content_available=True,
-            source_note=f"Source: Tamil Nadu State Board Class 6 Science — Term {topic['term']}, Chapter {topic['chapter']} ({lang})",
-            images=chapter_images,
-            brief_points=brief_list
-        )
-
-    # Use verified curriculum textbook extraction
+    # 1. Use verified curriculum textbook extraction first for instant, zero-delay response
     textbook_entry = TOPIC_TEXTBOOKS.get(req.topic_key, {}).get(lang)
     if textbook_entry:
         return TextbookResponse(
@@ -729,6 +714,21 @@ def get_textbook_content(req: TextbookRequest):
             title=title,
             language=lang,
             content=textbook_entry,
+            content_available=True,
+            source_note=f"Source: Tamil Nadu State Board Class 6 Science — Term {topic['term']}, Chapter {topic['chapter']} ({lang})",
+            images=chapter_images,
+            brief_points=brief_list
+        )
+
+    # 2. Fallback to PDF extraction if not in verified curriculum bank
+    raw_content = extract_chapter_text(lang, req.topic_key)
+    if raw_content and len(raw_content) > 100:
+        formatted_content = format_textbook_with_gemini(raw_content, title, lang)
+        return TextbookResponse(
+            topic_key=req.topic_key,
+            title=title,
+            language=lang,
+            content=formatted_content,
             content_available=True,
             source_note=f"Source: Tamil Nadu State Board Class 6 Science — Term {topic['term']}, Chapter {topic['chapter']} ({lang})",
             images=chapter_images,
